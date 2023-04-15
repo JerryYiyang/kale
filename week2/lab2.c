@@ -35,7 +35,8 @@ int main(void){
             fgets(str, SIZE, stdin);
             len = strlen(str);
             new->data = malloc(len);
-            new->data = str;
+            memcpy(new->data, str, len);
+            free(str);
             if(head == NULL){
                 head = new;
                 new->next = head;
