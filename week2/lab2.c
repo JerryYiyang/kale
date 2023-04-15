@@ -18,18 +18,22 @@ node *head = NULL;
 int main(void){
     int done = 0;
     int numItems = 0;
+    char choice;
     while(done == 0){
         printMenu();
-        char choice = getchar();
+        choice = getchar();
         flush();
         if(choice == '1'){
-            printf("insert text\n");
             node *new;
+            node *temp;
+            char *str;
+            int len;
+            printf("insert text\n");
             new = malloc(sizeof(node));
-            node *temp = head;
-            char *str = (char *) malloc(SIZE);
+            temp = head;
+            str = (char *) malloc(SIZE);
             fgets(str, SIZE, stdin);
-            int len = strlen(str);
+            len = strlen(str);
             new->data = malloc(len);
             new->data = str;
             if(head == NULL){
@@ -55,7 +59,8 @@ int main(void){
             i = c - '0';
             if(i >= 0 && i < numItems){
                 node *temp = head;
-                for(int j = 0; j < i; j++){
+                int j;
+                for(j = 0; j < i; j++){
                     temp = temp->next;
                 }
                 printf("%s\n", temp->data);
@@ -70,7 +75,8 @@ int main(void){
             i = c - '0';
             if(i >= 0 && i < numItems){
                 node *temp = head;
-                for(int j = 0; j < i; j++){
+                int j;
+                for(j = 0; j < i; j++){
                     temp = temp->next;
                 }
                 temp->prev->next = temp->next;
