@@ -27,14 +27,12 @@ int main(void){
             node *new;
             node *temp;
             char *str;
-            int len;
             printf("insert text\n");
             new = malloc(sizeof(node));
             temp = head;
             str = (char *) malloc(SIZE);
             fgets(str, SIZE, stdin);
-            len = strlen(str);
-            new->data = malloc(len);
+            str[strcspn(str, "\n")] = '\0';
             new->data = str;
             if(head == NULL){
                 head = new;
@@ -63,7 +61,7 @@ int main(void){
                 for(j = 0; j < i; j++){
                     temp = temp->next;
                 }
-                printf("%s\n", temp->data);
+                printf("%s\n\n", temp->data);
             } else {
                 printf("no such element\n\n");
             }
@@ -107,13 +105,17 @@ int main(void){
         } else if(choice == 5){
             node *temp = head;
             while(temp->next != head){
-                printf("%s", temp->data);
+                printf("%s\n", temp->data);
                 temp = temp->next;
             }
-            printf("%s\n", temp->data);
+            printf("%s\n\n", temp->data);
         } else if(choice == 6){
             node *temp = head;
             node *next;
+            if(head == NULL){
+                done = 1;
+                continue;
+            }
             do {
                 next = temp->next;
                 free(temp->data);
