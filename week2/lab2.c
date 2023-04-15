@@ -18,12 +18,12 @@ node *head = NULL;
 int main(void){
     int done = 0;
     int numItems = 0;
-    char choice;
+    int choice;
     while(done == 0){
         printMenu();
-        choice = getchar();
-        flush();
-        if(choice == '1'){
+        scanf("%d", &choice);
+        getchar();
+        if(choice == 1){
             node *new;
             node *temp;
             char *str;
@@ -35,8 +35,7 @@ int main(void){
             fgets(str, SIZE, stdin);
             len = strlen(str);
             new->data = malloc(len);
-            memcpy(new->data, str, len);
-            free(str);
+            new->data = str;
             if(head == NULL){
                 head = new;
                 new->next = head;
@@ -52,7 +51,7 @@ int main(void){
             }
             numItems++;
             printf("done\n\n");
-        } else if(choice == '2'){
+        } else if(choice == 2){
             int i,c;
             printf("get item #\n");
             c = getchar();
@@ -68,7 +67,7 @@ int main(void){
             } else {
                 printf("no such element\n\n");
             }
-        } else if(choice == '3'){
+        } else if(choice == 3){
             int i,c;
             printf("delete item #\n");
             c = getchar();
@@ -92,7 +91,7 @@ int main(void){
             } else {
                 printf("no such element\n\n");
             }
-        } else if(choice == '4'){
+        } else if(choice == 4){
             node *curr = head;
             node *temp;
             if (head != NULL){
@@ -105,14 +104,14 @@ int main(void){
                 head = temp->prev;
             }
             printf("done\n\n");
-        } else if(choice == '5'){
+        } else if(choice == 5){
             node *temp = head;
             while(temp->next != head){
                 printf("%s", temp->data);
                 temp = temp->next;
             }
             printf("%s\n", temp->data);
-        } else if(choice == '6'){
+        } else if(choice == 6){
             node *temp = head;
             node *next;
             do {
@@ -124,7 +123,7 @@ int main(void){
             head = NULL;
             done = 1;
         } else{
-            printf("invalid input\n\n");
+            printf("invalid entry\n\n");
             continue;
         }
     }
