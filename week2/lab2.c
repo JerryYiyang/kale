@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIZE 100000
-
 typedef struct node node;
 void printMenu();
 void flush();
@@ -27,12 +25,28 @@ int main(void){
             node *new;
             node *temp;
             char *str;
+            int size;
+            int len;
             printf("insert text\n");
             new = malloc(sizeof(node));
             temp = head;
-            str = (char *) malloc(SIZE);
-            fgets(str, SIZE, stdin);
-            str[strcspn(str, "\n")] = '\0';
+            size = 10;
+            str = (char *)malloc(size);
+            len = 0;
+            while(1){
+                char c;
+                c = getchar();
+                if (c == EOF || c == '\n') {
+                    str[len] = '\0';
+                    break;
+                }
+                str[len] = c;
+                len++;
+                if(len == size){
+                    size = size + 10;
+                    str = (char *)realloc(str, size);
+                }
+            }
             new->data = str;
             if(head == NULL){
                 head = new;
@@ -54,6 +68,7 @@ int main(void){
             printf("get item #\n");
             c = getchar();
             flush();
+            //if get item input isnt a number is it okay if we dont have an invalid input thing
             i = c - '0';
             if(i >= 0 && i < numItems){
                 node *temp = head;
