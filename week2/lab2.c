@@ -16,12 +16,16 @@ node *head = NULL;
 int main(void){
     int done = 0;
     int numItems = 0;
-    int choice;
+    char choice[5];
     while(done == 0){
         printMenu();
-        scanf("%d", &choice);
-        getchar();
-        if(choice == 1){
+        fgets(choice, sizeof(choice), stdin);
+        choice[strcspn(choice, "\n")] = '\0';
+        if(strlen(choice) > 1){
+            printf("invalid entry\n\n");
+            continue;
+        }
+        if(choice[0] == '1'){
             node *new;
             node *temp;
             char *str;
@@ -63,12 +67,11 @@ int main(void){
             }
             numItems++;
             printf("done\n\n");
-        } else if(choice == 2){
+        } else if(choice[0] == '2'){
             int i,c;
             printf("get item #\n");
             c = getchar();
             flush();
-            //if get item input isnt a number is it okay if we dont have an invalid input thing
             i = c - '0';
             if(i >= 0 && i < numItems){
                 node *temp = head;
@@ -80,7 +83,7 @@ int main(void){
             } else {
                 printf("no such element\n\n");
             }
-        } else if(choice == 3){
+        } else if(choice[0] == '3'){
             int i,c;
             printf("delete item #\n");
             c = getchar();
@@ -104,7 +107,7 @@ int main(void){
             } else {
                 printf("no such element\n\n");
             }
-        } else if(choice == 4){
+        } else if(choice[0] == '4'){
             node *curr = head;
             node *temp;
             if (head != NULL){
@@ -117,14 +120,14 @@ int main(void){
                 head = temp->prev;
             }
             printf("done\n\n");
-        } else if(choice == 5){
+        } else if(choice[0] == '5'){
             node *temp = head;
             while(temp->next != head){
                 printf("%s\n", temp->data);
                 temp = temp->next;
             }
             printf("%s\n\n", temp->data);
-        } else if(choice == 6){
+        } else if(choice[0] == '6'){
             node *temp = head;
             node *next;
             if(head == NULL){
