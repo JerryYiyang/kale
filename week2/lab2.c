@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef struct node node;
 void printMenu();
@@ -68,11 +69,28 @@ int main(void){
             numItems++;
             printf("done\n\n");
         } else if(choice[0] == '2'){
-            int i,c;
+            int i;
+            char c[10000];
+            int j;
+            int check;
+            check = 0;
+            j = 0;
             printf("get item #\n");
-            c = getchar();
-            flush();
-            i = c - '0';
+            fgets(c, sizeof(c), stdin);
+            while(j < sizeof(c)){
+                if(c[j] == '\n'){
+                    break;
+                }
+                if(isdigit(c[j]) == 0){
+                    check = 1;
+                }
+                j++;
+            }
+            if(check == 1){
+                printf("invalid entry\n\n");
+                continue;
+            }
+            i = atoi(c);
             if(i >= 0 && i < numItems){
                 node *temp = head;
                 int j;
@@ -84,11 +102,28 @@ int main(void){
                 printf("no such element\n\n");
             }
         } else if(choice[0] == '3'){
-            int i,c;
+            int i;
+            char c[10000];
+            int j;
+            int check;
+            check = 0;
+            j = 0;
             printf("delete item #\n");
-            c = getchar();
-            flush();
-            i = c - '0';
+            fgets(c, sizeof(c), stdin);
+            while(j < sizeof(c)){
+                if(c[j] == '\n'){
+                    break;
+                }
+                if(isdigit(c[j]) == 0){
+                    check = 1;
+                }
+                j++;
+            }
+            if(check == 1){
+                printf("invalid entry\n\n");
+                continue;
+            }
+            i = atoi(c);
             if(i >= 0 && i < numItems){
                 node *temp = head;
                 int j;
