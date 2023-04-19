@@ -1,0 +1,118 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "p1.h"
+
+int main(int argc, char *argv[]) {
+    FILE *img1, *img2, *out;
+    float ratio;
+    BYTE *pixel1, *pixel2;
+    int width1, height1, width2, height2;
+    int pcount1, pcount2;
+    color *c1, *c2, *c3;
+    int x, y, i;
+    FILEHEADER *fileHeader1, *fileHeader2;
+    INFOHEADER *infoHeader1, *infoHeader2;
+    /*opening files*/
+    img1 = fopen(argv[1], "rb");
+    img2 = fopen(argv[2], "rb");
+    ratio = atof(argv[3]);
+    out = fopen(argv[4], "wb");
+    /*mallocing for headers*/
+    fileHeader1 = malloc(sizeof(FILEHEADER));
+    fileHeader2 = malloc(sizeof(FILEHEADER));
+    infoHeader1 = malloc(sizeof(INFOHEADER));
+    infoHeader2 = malloc(sizeof(INFOHEADER));
+    /*reading info from files*/
+    readFHeader(fileHeader1, img1);
+    readIHeader(infoHeader1, img1);
+    readFHeader(fileHeader2, img2);
+    readIHeader(infoHeader2, img2);
+    /*checking if file type is correct*/
+    printf("%c%c\n", fileHeader1->bfType, fileHeader1->bfType >> 8);
+    /*getting width and height in pixels*/
+    // width1 = infoHeader1->biWidth;
+    // height1 = infoHeader1->biHeight;
+    // width2 = infoHeader2->biWidth;
+    // height2 = infoHeader2->biHeight;
+    // /*getting number of pixels*/
+    // pcount1 = width1 * height1;
+    // pcount2 = width2 * height2;
+    // /*reading image data into array of BYTES*/
+    // pixel1 = (BYTE *)malloc(pcount1);
+    // pixel2 = (BYTE *)malloc(pcount2);
+    // fread(pixel1, 1, pcount1, img1);
+    // fread(pixel2, 1, pcount2, img2);
+    // /*getting pixel colors*/
+    // c1 = malloc(pcount1 * sizeof(color));
+    // c2 = malloc(pcount2 * sizeof(color));
+    // c3 = malloc(pcount1 * sizeof(color));
+    // for(y = 0; y < height1; y++){
+    //     for(x = 0; x < width1; x++){
+    //         c1[y * width1 + x] = get_color(pixel1, width1, height1, x, y);
+    //     }
+    // }
+    // for(y = 0; y < height2; y++){
+    //     for(x = 0; x < width2; x++){
+    //         c2[y * width2 + x] = get_color(pixel2, width2, height2, x, y);
+    //     }
+    // }
+    // /*mixing colors*/
+    // for(i = 0; i < pcount1; i++){
+    //     color c;
+    //     c.blue = (c1[i]).blue * ratio + (c2[i]).blue * (1 - ratio);
+    //     c.green = (c1[i]).green * ratio + (c2[i]).green * (1 - ratio);
+    //     c.red = (c1[i]).red * ratio + (c2[i]).red * (1 - ratio);
+    //     c3[i] = c;
+    // }
+    // /*writing out*/
+    // fwrite(&fileHeader1, sizeof(struct tagBITMAPFILEHEADER), 1, out);
+    // fwrite(&infoHeader1, sizeof(struct tagBITMAPINFOHEADER), 1, out);
+    // fwrite(c3, 1, size1, out);
+    // /*freeing and closing everything*/
+    // free(pixel1);
+    // free(pixel2);
+    // free(c1);
+    // free(c2);
+    // free(c3);
+    fclose(img1);
+    fclose(img2);
+    fclose(out);
+    return 0;
+}
+
+void invalidInput() {
+    printf("Invalid input, expected:\n[program] [imagefile1] [imagefile1] [ratio] [outputfile]");
+}
+
+color get_color(BYTE *pixel, int width, int height, int x, int y){
+    color c;
+    int i;
+    i = (y * width + x) * 3;
+    c.blue = pixel[i];
+    c.green = pixel[i + 1];
+    c.red = pixel[i + 2];
+    return c;
+}
+
+void readFHeader(FILEHEADER *fh, FILE *f){
+    fread(&(fh->bfType), sizeof(WORD), 1, f);
+    fread(&(fh->bfSize), sizeof(DWORD), 1, f);
+    fread(&(fh->bfReserved1), sizeof(WORD), 1, f);
+    fread(&(fh->bfReserved2), sizeof(WORD), 1, f);
+    fread(&(fh->bfOffBits), sizeof(DWORD), 1, f);
+}
+
+void readIHeader(INFOHEADER *ih, FILE *f){
+    fread(&(ih->biSize), sizeof(DWORD), 1, f);
+    fread(&(ih->biWidth), sizeof(LONG), 1, f);
+    fread(&(ih->biHeight), sizeof(LONG), 1, f);
+    fread(&(ih->biPlanes), sizeof(WORD), 1, f);
+    fread(&(ih->biBitCount), sizeof(WORD), 1, f);
+    fread(&(ih->biCompression), sizeof(DWORD), 1, f);
+    fread(&(ih->biSizeImage), sizeof(DWORD), 1, f);
+    fread(&(ih->biXPelsPerMeter), sizeof(LONG), 1, f);
+    fread(&(ih->biYPelsPerMeter), sizeof(LONG), 1, f);
+    fread(&(ih->biClrImportant), sizeof(DWORD), 1, f);
+    fread(&(ih->biClrUsed), sizeof(DWORD), 1, f);
+}
