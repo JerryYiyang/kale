@@ -14,10 +14,34 @@ int main(int argc, char *argv[]) {
     int x, y, i;
     FILEHEADER *fileHeader1, *fileHeader2;
     INFOHEADER *infoHeader1, *infoHeader2;
-    img1 = fopen(argv[1], "rb");
-    img2 = fopen(argv[2], "rb");
+    if (argc != 5) {
+        printf("Missing parameters, expected:\n");
+        printf("[programname] [imagefile1] [imagefile2] [ratio] [outputfile]\n");
+        return 1;
+    }
     ratio = atof(argv[3]);
+    if (ratio < 0.0 || ratio > 1.0) {
+        printf("Invalid ratio, should be between 0.0 and 1.0\n");
+        return 1;
+    }
+    img1 = fopen(argv[1], "rb");
+    if (!img1) {
+        printf("Cannot open file: %s\n", argv[1]);
+        return 1;
+    }
+    img2 = fopen(argv[2], "rb");
+    if (!img2) {
+        printf("Cannot open file: %s\n", argv[2]);
+        fclose(img1);
+        return 1;
+    }
     out = fopen(argv[4], "wb");
+    if (!out) {
+        printf("Cannot create output file: %s\n", argv[4]);
+        fclose(img1);
+        fclose(img2);
+        return 1;
+    }
     fileHeader1 = malloc(sizeof(FILEHEADER));
     fileHeader2 = malloc(sizeof(FILEHEADER));
     infoHeader1 = malloc(sizeof(INFOHEADER));
@@ -26,12 +50,18 @@ int main(int argc, char *argv[]) {
     readFHeader(fileHeader2, img2);
     readIHeader(infoHeader1, img1);
     readIHeader(infoHeader2, img2);
+    if (fileHeader1->bfType != 0x4D42 || fileHeader2->bfType != 0x4D42) {
+        printf("Invalid file format. Only 24-bit BMP files are supported.\n");
+        fclose(img1);
+        fclose(img2);
+        fclose(out);
+        return 1;
+    }
     /*getting width and height in pixels*/
     width1 = infoHeader1->biWidth;
     height1 = infoHeader1->biHeight;
     width2 = infoHeader2->biWidth;
     height2 = infoHeader2->biHeight;
-
     /*getting number of pixels*/
     pcount1 = width1 * height1;
     pcount2 = width2 * height2;
@@ -68,12 +98,9 @@ int main(int argc, char *argv[]) {
         c.red = (c1[i]).red * ratio + (c2[i]).red * (1 - ratio);
         c3[i] = c;
     }
-
     writeFHeader(fileHeader1, out);
     writeIHeader(infoHeader1, out);
-
     fwrite(c3, 1, pcount1 * 3 + height1 * padding1, out);
-
     /*freeing and closing everything*/
     free(c1);
     free(c2);
