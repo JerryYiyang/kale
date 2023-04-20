@@ -66,8 +66,8 @@ int main(int argc, char *argv[]) {
     pcount1 = width1 * height1;
     pcount2 = width2 * height2;
     /*getting padding*/
-    padding1 = (4 - (width1 * 3) % 4) % 4;
-    padding2 = (4 - (width2 * 3) % 4) % 4;
+    padding1 = (4 - (width1 * 3) % 4);
+    padding2 = (4 - (width2 * 3) % 4);
     /*skipping color table if it exists*/
     fseek(img1, fileHeader1->bfOffBits, SEEK_SET);
     fseek(img2, fileHeader2->bfOffBits, SEEK_SET);
@@ -100,7 +100,14 @@ int main(int argc, char *argv[]) {
     }
     writeFHeader(fileHeader1, out);
     writeIHeader(infoHeader1, out);
-    fwrite(c3, 1, pcount1 * 3 + height1 * padding1, out);
+    for (y = 0; y < height1; y++) {
+        for (x = 0; x < width1; x++) {
+            fwrite(&c3[y * width1 + x], sizeof(color), 1, out);
+        }
+        // Write padding
+        BYTE paddingBytes[] = {0, 0, 0};
+        fwrite(paddingBytes, 1, padding1, out);
+    }
     /*freeing and closing everything*/
     free(c1);
     free(c2);
