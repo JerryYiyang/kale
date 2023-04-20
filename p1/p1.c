@@ -113,6 +113,7 @@ int main(int argc, char *argv[]) {
     free(pixel2);
     fclose(img1);
     fclose(img2);
+    return 0;
 }
 
 void readFHeader(FILEHEADER *fh, FILE *f){
