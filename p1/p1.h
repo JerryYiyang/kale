@@ -43,3 +43,7 @@ void readFHeader(FILEHEADER *fh, FILE *f);
 void readIHeader(INFOHEADER *ih, FILE *f);
 void writeFHeader(FILEHEADER *fh, FILE *f);
 void writeIHeader(INFOHEADER *ih, FILE *f);
+
+int clamp(int value);
+
+color bilinear_interpolation(BYTE *pixel, int width, int height, float x, float y, int padding);
