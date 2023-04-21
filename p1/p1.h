@@ -38,12 +38,12 @@ struct color
 void invalidInput();
 
 color get_color(BYTE *pixel, int width, int height, int x, int y, int padding);
+color get_color_bilinear(int x, int y, int rX, int rY, BYTE *pixel, int width, int height, int padding);
 
 void readFHeader(FILEHEADER *fh, FILE *f);
 void readIHeader(INFOHEADER *ih, FILE *f);
 void writeFHeader(FILEHEADER *fh, FILE *f);
 void writeIHeader(INFOHEADER *ih, FILE *f);
-
-int clamp(int value);
-
-color bilinear_interpolation(BYTE *pixel, int width, int height, float x, float y, int padding);
+/*BYTE get_red(BYTE *imagedata, int x, int y, int imageWidth, int imageHeight);
+BYTE get_green(BYTE *imagedata, int x, int y, int imageWidth, int imageHeight);
+BYTE get_blue(BYTE *imagedata, int x, int y, int imageWidth, int imageHeight);*/

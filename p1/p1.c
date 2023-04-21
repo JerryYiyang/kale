@@ -66,8 +66,8 @@ int main(int argc, char *argv[]) {
     pcount1 = width1 * height1;
     pcount2 = width2 * height2;
     /*getting padding*/
-    padding1 = (4 - (width1 * 3) % 4);
-    padding2 = (4 - (width2 * 3) % 4);
+    padding1 = (4 - (width1 * 3) % 4) % 4;
+    padding2 = (4 - (width2 * 3) % 4) % 4;
     /*skipping color table if it exists*/
     fseek(img1, fileHeader1->bfOffBits, SEEK_SET);
     fseek(img2, fileHeader2->bfOffBits, SEEK_SET);
@@ -79,7 +79,6 @@ int main(int argc, char *argv[]) {
     /*getting pixel colors*/
     c1 = malloc(pcount1 * sizeof(color));
     c2 = malloc(pcount2 * sizeof(color));
-    c3 = malloc(pcount1 * sizeof(color));
     for(y = 0; y < height1; y++){
         for(x = 0; x < width1; x++){
             c1[y * width1 + x] = get_color(pixel1, width1, height1, x, y, padding1);
@@ -90,28 +89,111 @@ int main(int argc, char *argv[]) {
             c2[y * width2 + x] = get_color(pixel2, width2, height2, x, y, padding2);
         }
     }
-    /*mixing colors*/
-    for(i = 0; i < pcount1; i++){
-        color c;
-        c.blue = (c1[i]).blue * ratio + (c2[i]).blue * (1 - ratio);
-        c.green = (c1[i]).green * ratio + (c2[i]).green * (1 - ratio);
-        c.red = (c1[i]).red * ratio + (c2[i]).red * (1 - ratio);
-        c3[i] = c;
-    }
-    writeFHeader(fileHeader1, out);
-    writeIHeader(infoHeader1, out);
-    for (y = 0; y < height1; y++) {
-        for (x = 0; x < width1; x++) {
-            fwrite(&c3[y * width1 + x], sizeof(color), 1, out);
+    if (width1 == width2 && height1 == height2){
+        /*mixing colors*/
+        c3 = malloc(pcount1 * sizeof(color));
+        for(i = 0; i < pcount1; i++){
+            color c;
+            c.blue = (c1[i]).blue * ratio + (c2[i]).blue * (1 - ratio);
+            c.green = (c1[i]).green * ratio + (c2[i]).green * (1 - ratio);
+            c.red = (c1[i]).red * ratio + (c2[i]).red * (1 - ratio);
+            c3[i] = c;
         }
-        // Write padding
-        BYTE paddingBytes[] = {0, 0, 0};
-        fwrite(paddingBytes, 1, padding1, out);
+        writeFHeader(fileHeader1, out);
+        writeIHeader(infoHeader1, out);
+        for (y = 0; y < height1; y++) {
+            for (x = 0; x < width1; x++) {
+                fwrite(&c3[y * width1 + x], sizeof(BYTE), 3, out);
+            }
+            /*Write padding at end of row*/
+            BYTE paddingBytes[] = {0, 0, 0};
+            fwrite(paddingBytes, 1, padding1, out);
+        }
+        free(c3);
+    } else{
+        int bwidth, bheight, swidth, sheight, bcount, bpadding, spadding;
+        FILEHEADER *bfh;
+        INFOHEADER *bih;
+        BYTE *spixel;
+        float rX, rY, sX, sY;
+        int x1, y1, x2, y2;
+        int dx, dy;
+        color *resize;
+        if(width1 > width2){
+            c3 = malloc(pcount1 * sizeof(color));
+            bwidth = width1;
+            bheight = height1;
+            swidth = width2;
+            sheight = height2;
+            bcount = pcount1;
+            bpadding = padding1;
+            spadding = padding2;
+            bfh = fileHeader1;
+            bih = infoHeader1;
+            spixel = pixel2;
+            /*getting ratios*/
+            rX = width2 / width1;
+            rY = height2 / height1;
+            resize = malloc(bcount * sizeof(color));
+        } else{
+            c3 = malloc(pcount2 * sizeof(color));
+            bwidth = width2;
+            bheight = height2;
+            swidth = width1;
+            sheight = height1;
+            bcount = pcount2;
+            bpadding = padding2;
+            spadding = padding1;
+            bfh = fileHeader2;
+            bih = infoHeader2;
+            spixel = pixel1;
+            /*getting ratios*/
+            rX = (float)width1 / (float)width2;
+            rY = (float)height1 / (float)height2;
+            resize = malloc(bcount * sizeof(color));
+        }
+        /*resizing smaller image using the scale*/
+        for(y = 0; y < bheight; y++){
+            for(x = 0; x < bwidth; x++){
+                color cRe;
+                cRe = get_color_bilinear(x, y, rX, rY, spixel, swidth, sheight, spadding);
+                resize[y * bwidth + x] = cRe;
+            }
+        }
+        /*mixing colors*/
+        if(width1 > width2){
+            for(i = 0; i < bcount; i++){
+                color c;
+                c.blue = (c1[i]).blue * ratio + (resize[i]).blue * (1 - ratio);
+                c.green = (c1[i]).green * ratio + (resize[i]).green * (1 - ratio);
+                c.red = (c1[i]).red * ratio + (resize[i]).red * (1 - ratio);
+                c3[i] = c;
+            }
+        } else{
+            for(i = 0; i < bcount; i++){
+                color c;
+                c.blue = (c2[i]).blue * ratio + (resize[i]).blue * (1 - ratio);
+                c.green = (c2[i]).green * ratio + (resize[i]).green * (1 - ratio);
+                c.red = (c2[i]).red * ratio + (resize[i]).red * (1 - ratio);
+                c3[i] = c;
+            }
+        }
+        writeFHeader(bfh, out);
+        writeIHeader(bih, out);
+        for (y = 0; y < bheight; y++) {
+            for (x = 0; x < bwidth; x++) {
+                fwrite(&c3[y * bwidth + x], sizeof(BYTE), 3, out);
+            }
+            // Write padding
+            BYTE paddingBytes[] = {0, 0, 0};
+            fwrite(paddingBytes, 1, bpadding, out);
+        }
+        free(resize);
+        free(c3);
     }
-    /*freeing and closing everything*/
+    /*freeing and closing everything that hasn't been done yet*/
     free(c1);
     free(c2);
-    free(c3);
     free(fileHeader1);
     free(fileHeader2);
     free(infoHeader1);
@@ -141,8 +223,8 @@ void readIHeader(INFOHEADER *ih, FILE *f){
     fread(&(ih->biSizeImage), sizeof(DWORD), 1, f);
     fread(&(ih->biXPelsPerMeter), sizeof(LONG), 1, f);
     fread(&(ih->biYPelsPerMeter), sizeof(LONG), 1, f);
-    fread(&(ih->biClrImportant), sizeof(DWORD), 1, f);
     fread(&(ih->biClrUsed), sizeof(DWORD), 1, f);
+    fread(&(ih->biClrImportant), sizeof(DWORD), 1, f);
 }
 
 void writeFHeader(FILEHEADER *fh, FILE *f){
@@ -163,8 +245,8 @@ void writeIHeader(INFOHEADER *ih, FILE *f){
     fwrite(&(ih->biSizeImage), sizeof(DWORD), 1, f);
     fwrite(&(ih->biXPelsPerMeter), sizeof(LONG), 1, f);
     fwrite(&(ih->biYPelsPerMeter), sizeof(LONG), 1, f);
-    fwrite(&(ih->biClrImportant), sizeof(DWORD), 1, f);
     fwrite(&(ih->biClrUsed), sizeof(DWORD), 1, f);
+    fwrite(&(ih->biClrImportant), sizeof(DWORD), 1, f);
 }
 
 color get_color(BYTE *pixel, int width, int height, int x, int y, int padding){
@@ -175,4 +257,34 @@ color get_color(BYTE *pixel, int width, int height, int x, int y, int padding){
     c.green = pixel[i + 1];
     c.red = pixel[i + 2];
     return c;
+} 
+
+color get_color_bilinear(int x, int y, int rX, int rY, BYTE *pixel, int width, int height, int padding){
+    int sX, sY, x1, y1, x2, y2, dx, dy;
+    color cRU, cLU, cLL, cRL;
+    color cR, cL;
+    color cRe;
+    sX = x * rX;
+    sY = y * rY;
+    /*"flooring" and "ceiling" the x and y*/
+    x1 = (int)sX;
+    x2 = x1 + 1;
+    y1 = (int)sY;
+    y2 = y1 + 1;
+    dx = sX - x1;
+    dy = sY - y1;
+    cRU = get_color(pixel, width, height, x1, y2, padding);
+    cLU = get_color(pixel, width, height, x2, y2, padding);
+    cLL = get_color(pixel, width, height, x1, y1, padding);
+    cRL = get_color(pixel, width, height, x2, y1, padding);
+    cR.red = cRU.red * (1 - dy) + cRL.red * dy;
+    cR.green = cRU.green * (1 - dy) + cRL.green * dy;
+    cR.blue = cRU.blue * (1 - dy) + cRL.blue * dy;
+    cL.red = cLU.red * (1 - dy) + cLL.red * dy;
+    cL.green = cLU.green * (1 - dy) + cLL.green * dy;
+    cL.blue = cLU.blue * (1 - dy) + cLL.blue * dy;
+    cRe.red = cL.red * (1 - dx) + cR.red * dx;
+    cRe.green = cL.green * (1 - dx) + cR.green * dx;
+    cRe.blue = cL.blue * (1 - dx) + cR.blue * dx;
+    return cRe;
 }
