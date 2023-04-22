@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
         }
         free(c3);
     } else{
-        int bwidth, bheight, swidth, sheight, bcount, bpadding, spadding;
+        int bwidth, bheight, swidth, sheight, bcount, spadding;
         FILEHEADER *bfh;
         INFOHEADER *bih;
         BYTE *spixel;
@@ -126,7 +126,6 @@ int main(int argc, char *argv[]) {
             swidth = width2;
             sheight = height2;
             bcount = pcount1;
-            bpadding = padding1;
             spadding = padding2;
             bfh = fileHeader1;
             bih = infoHeader1;
@@ -141,7 +140,6 @@ int main(int argc, char *argv[]) {
             swidth = width1;
             sheight = height1;
             bcount = pcount2;
-            bpadding = padding2;
             spadding = padding1;
             bfh = fileHeader2;
             bih = infoHeader2;
