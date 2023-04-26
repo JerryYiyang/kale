@@ -54,6 +54,10 @@ int main(int argc, char *argv[]) {
     readIHeader(infoHeader2, img2);
     if (fileHeader1->bfType != 0x4D42 || fileHeader2->bfType != 0x4D42) {
         printf("Invalid file format. Only 24-bit BMP files are supported.\n");
+        free(fileHeader1);
+        free(fileHeader2);
+        free(infoHeader1);
+        free(infoHeader2);
         fclose(img1);
         fclose(img2);
         fclose(out);
@@ -199,6 +203,7 @@ int main(int argc, char *argv[]) {
     free(pixel2);
     fclose(img1);
     fclose(img2);
+    fclose(out);
     return 0;
 }
 
@@ -249,12 +254,16 @@ void writeIHeader(INFOHEADER *ih, FILE *f){
 color get_color(BYTE *pixel, int width, int height, int x, int y, int padding){
     color c;
     int i;
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        exit(1);
+    }
     i = (y * (width * 3 + padding) + x * 3);
     c.blue = pixel[i];
     c.green = pixel[i + 1];
     c.red = pixel[i + 2];
     return c;
-} 
+}
+
 
 color get_color_bilinear(int x, int y, float rX, float rY, BYTE *pixel, int width, int height, int padding){
     float sX, sY;
@@ -274,6 +283,18 @@ color get_color_bilinear(int x, int y, float rX, float rY, BYTE *pixel, int widt
     y2 = y1 + 1;
     if(y1 == y){
         y2 = y1;
+    }
+    if(x1 < 0){
+        x1 = 0;
+    }
+    if(x2 >= width){
+        x2 = width - 1;
+    }
+    if(y1 < 0){
+        y1 = 0;
+    }
+    if(y2 >= height){
+        y2 = height - 1;
     }
     dx = sX - x1;
     dy = sY - y1;
