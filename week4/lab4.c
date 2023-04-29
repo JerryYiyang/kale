@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include "lab4.h"
 
@@ -34,6 +35,7 @@ int main(int argc, char *argv[]){
     height = infoHeader->biHeight;
     pcount = width * height;
     padding = (4 - (width * 3) % 4) % 4;
+    fseek(img, fileHeader->bfOffBits, SEEK_SET);
     pixel = (BYTE *)mmap(NULL, pcount * 3 + height * padding, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     fread(pixel, 1, pcount * 3 + height * padding, img);
     c = mmap(NULL, pcount * sizeof(color), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
@@ -163,17 +165,21 @@ color get_color(BYTE *pixel, int width, int height, int x, int y, int padding){
 }
 
 color brighten(color c, float ratio){
-    c.blue += (BYTE)(ratio * 255);
-    c.green += (BYTE)(ratio * 255);
-    c.red += (BYTE)(ratio * 255);
-    if(c.blue > 255){
-        c.blue = (BYTE) 255;
+    int b, g, r;
+    b = (int)c.blue + (ratio * 255);
+    g = (int)c.green + (ratio * 255);
+    r = (int)c.red + (ratio * 255);
+    if(b > 255){
+        b = 255;
     }
-    if(c.green > 255){
-        c.green = (BYTE) 255;
+    if(g > 255){
+        g = 255;
     }
-    if(c.red > 255){
-        c.red = (BYTE) 255;
+    if(r > 255){
+        r = 255;
     }
+    c.blue = (BYTE)b;
+    c.green = (BYTE)g;
+    c.red = (BYTE)r;
     return c;
 }

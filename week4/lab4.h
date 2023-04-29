@@ -42,3 +42,5 @@ void readFHeader(FILEHEADER *fh, FILE *f);
 void readIHeader(INFOHEADER *ih, FILE *f);
 void writeFHeader(FILEHEADER *fh, FILE *f);
 void writeIHeader(INFOHEADER *ih, FILE *f);
+
+pid_t fork(void);
