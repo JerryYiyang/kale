@@ -45,6 +45,7 @@ int main(int argc, char *argv[]){
         }
     }
     if(parallel == 0){
+        start = clock();
         for(i = 0; i < pcount; i++){
             c[i] = brighten(c[i], bright);
         }
@@ -64,6 +65,9 @@ int main(int argc, char *argv[]){
         munmap(infoHeader, sizeof(INFOHEADER));
         munmap(pixel, pcount * 3 + height * padding);
         munmap(c, pcount * sizeof(color));
+        end = clock();
+        time = (double)(end - start) / CLOCKS_PER_SEC;
+        printf("Time taken without fork: %f\n", time);
     } else{
         start = clock();
         n = fork();
@@ -99,7 +103,7 @@ int main(int argc, char *argv[]){
             munmap(c, pcount * sizeof(color));
             end = clock();
             time = (double)(end - start) / CLOCKS_PER_SEC;
-            printf("Time taken: %f\n", time);
+            printf("Time taken with fork: %f\n", time);
         }
     }
     return 0;
