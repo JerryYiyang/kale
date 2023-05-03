@@ -10,19 +10,36 @@ chunkhead *head = NULL;
 freechunk *freeList;
 
 int main(void){
-    byte *a[100];
-    clock_t ca, cb;
-    ca = clock();
-    for(int i=0;i<100;i++)
-    a[i]= mymalloc(1000);
-    for(int i=0;i<90;i++)
-    myfree(a[i]);
-    myfree(a[95]);
-    a[95] = mymalloc(1000);
-    for(int i=90;i<100;i++)
-    myfree(a[i]);
-    cb = clock();
-    printf("\nduration: % f\n", (double)(cb - ca));
+byte*a[100];
+analyze(); //50% points
+for(int i=0;i<100;i++)
+a[i]= mymalloc(1000);
+for(int i=0;i<90;i++)
+myfree(a[i]);
+analyze(); //50% of points if this is correct
+myfree(a[95]);
+a[95] = mymalloc(1000);
+analyze();//25% points, this new chunk should fill the smaller free one
+//(best fit)
+for(int i=90;i<100;i++)
+myfree(a[i]);
+analyze();// 25% should be an empty heap now with the start address
+//from the program start
+
+    // byte *a[100];
+    // clock_t ca, cb;
+    // ca = clock();
+    // for(int i=0;i<100;i++)
+    // a[i]= mymalloc(1000);
+    // for(int i=0;i<90;i++)
+    // myfree(a[i]);
+    // myfree(a[95]);
+    // a[95] = mymalloc(1000);
+    // for(int i=90;i<100;i++)
+    // myfree(a[i]);
+    // cb = clock();
+    // printf("\nduration: % f\n", (double)(cb - ca));
+
     return 0;
 }
 
@@ -52,7 +69,7 @@ byte *mymalloc(unsigned int size){
                 /*splitting chunks if needed*/
                 if(curr->size > size){ /*O(1)*/
                     chunkhead *open;
-                    int remainder = curr->size - size - sizeof(chunkhead);
+                    int remainder = curr->size - size;
                     curr->size = size;
                     open = (chunkhead *)((byte *)curr + size);
                     open->info = 0;
@@ -123,7 +140,7 @@ void analyse(){
     }
 }
 
-/*chunkhead* get_last_chunk() //you can change it when you aim for performance
+chunkhead* get_last_chunk() //you can change it when you aim for performance
 {
 if(!head) //I have a global void *head = NULL;
 return NULL;
@@ -137,18 +154,18 @@ void analyze()
 printf("\n--------------------------------------------------------------\n");
 if(!head)
 {
-printf("no heap");
+printf("no heap, program break on address: %p\n",sbrk(0));
 return;
 }
 chunkhead* ch = (chunkhead*)head;
 for (int no=0; ch; ch = (chunkhead*)ch->next,no++)
 {
-printf("%d | current addr: %x |", no, ch);
+printf("%d | current addr: %p |", no, ch);
 printf("size: %d | ", ch->size);
 printf("info: %d | ", ch->info);
-printf("next: %x | ", ch->next);
-printf("prev: %x", ch->prev);
+printf("next: %p | ", ch->next);
+printf("prev: %p", ch->prev);
 printf(" \n");
 }
-printf("program break on address: %x\n",sbrk(0));
-}*/
+printf("program break on address: %p\n",sbrk(0));
+}
