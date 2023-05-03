@@ -10,21 +10,21 @@ chunkhead *head = NULL;
 freechunk *freeList;
 
 int main(void){
-byte*a[100];
-analyze(); //50% points
-for(int i=0;i<100;i++)
-a[i]= mymalloc(1000);
-for(int i=0;i<90;i++)
-myfree(a[i]);
-analyze(); //50% of points if this is correct
-myfree(a[95]);
-a[95] = mymalloc(1000);
-analyze();//25% points, this new chunk should fill the smaller free one
-//(best fit)
-for(int i=90;i<100;i++)
-myfree(a[i]);
-analyze();// 25% should be an empty heap now with the start address
-//from the program start
+// byte*a[100];
+// analyze(); //50% points
+// for(int i=0;i<100;i++)
+// a[i]= mymalloc(1000);
+// for(int i=0;i<90;i++)
+// myfree(a[i]);
+// analyze(); //50% of points if this is correct
+// myfree(a[95]);
+// a[95] = mymalloc(1000);
+// analyze();//25% points, this new chunk should fill the smaller free one
+// //(best fit)
+// for(int i=90;i<100;i++)
+// myfree(a[i]);
+// analyze();// 25% should be an empty heap now with the start address
+// //from the program start
 
     // byte *a[100];
     // clock_t ca, cb;
@@ -40,6 +40,13 @@ analyze();// 25% should be an empty heap now with the start address
     // cb = clock();
     // printf("\nduration: % f\n", (double)(cb - ca));
 
+    unsigned char *a,*b,*c;
+    a = mymalloc(1000);
+    b = mymalloc(1000);
+    c = mymalloc(1000);
+    myfree(b);
+    myfree(c);
+    analyse();
     return 0;
 }
 
@@ -97,30 +104,35 @@ byte *mymalloc(unsigned int size){
     return NULL;
 }
 
-void myfree(byte *address){
+void myfree(byte *address) {
     chunkhead *temp;
     chunkhead *curr = (chunkhead *)(address - sizeof(chunkhead));
-    if(curr->next == NULL){ /*O(1)*/
-        sbrk(-curr->size);
-    }
-    curr->info = 0;
-    if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0){ /*O(1)*/
+    if(curr->next == NULL && curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0) {
         temp = (chunkhead *)curr->prev;
-        temp->next = (byte *)curr->next;
-        if(temp->next != NULL){ /*O(1)*/
-            ((chunkhead *)temp->next)->prev = (byte *)temp;
-        }
         temp->size += curr->size;
-    }
-    if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0){ /*O(1)*/
-        temp = (chunkhead *)curr->next;
-        curr->next = (byte *)temp->next;
-        if(curr->next != NULL){ /*O(1)*/
-            ((chunkhead *)curr->next)->prev = (byte *)curr;
+        temp->next = NULL;
+        sbrk(curr->size);
+    } else{
+        curr->info = 0;
+        if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0) { /*O(1)*/
+            temp = (chunkhead *)curr->prev;
+            temp->next = (byte *)curr->next;
+            if (temp->next != NULL) { /*O(1)*/
+                ((chunkhead *)temp->next)->prev = (byte *)temp;
+            }
+            temp->size += curr->size;
         }
-        curr->size += temp->size;
+        if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0) { /*O(1)*/
+            temp = (chunkhead *)curr->next;
+            curr->next = (byte *)temp->next;
+            if(curr->next != NULL) { /*O(1)*/
+                ((chunkhead *)curr->next)->prev = (byte *)curr;
+            }
+            curr->size += temp->size;
+        }
     }
 }
+
 
 void analyse(){
     chunkhead *curr = head;
