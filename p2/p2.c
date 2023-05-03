@@ -4,11 +4,13 @@
 #include <time.h>
 #include "p2.h"
 #define PAGESIZE 4096
+#define _GNU_SOURCE
 
 chunkhead *head = NULL;
+freechunk *freeList;
 
 int main(void){
-    unsigned char *a[100];
+    byte *a[100];
     clock_t ca, cb;
     ca = clock();
     for(int i=0;i<100;i++)
@@ -24,14 +26,14 @@ int main(void){
     return 0;
 }
 
-unsigned char *mymalloc(unsigned int size){
-    if(size % PAGESIZE != 0) { /*O(1)*/
-        size = ((int)(size / PAGESIZE) + 1) * PAGESIZE;
+byte *mymalloc(unsigned int size){
+    if((size + sizeof(chunkhead)) % PAGESIZE != 0) { /*O(1)*/
+        size = ((int)((size + sizeof(chunkhead)) / PAGESIZE) + 1) * PAGESIZE;
     }
     if(head == NULL){ /*O(1)*/
         void *check;
         head = (chunkhead *)sbrk(0);
-        check = sbrk(sizeof(chunkhead) + size);
+        check = sbrk(size);
         if(check == (void *)-1){ /*O(1)*/
             return NULL;
         }
@@ -39,7 +41,7 @@ unsigned char *mymalloc(unsigned int size){
         head->info = 1;
         head->prev = NULL;
         head->next = NULL;
-        return (unsigned char *)head + sizeof(chunkhead);
+        return (byte *)head + sizeof(chunkhead);
     } else{
         chunkhead *curr = (chunkhead *)head;
         chunkhead *prev;
@@ -52,55 +54,54 @@ unsigned char *mymalloc(unsigned int size){
                     chunkhead *open;
                     int remainder = curr->size - size - sizeof(chunkhead);
                     curr->size = size;
-                    open = (chunkhead *)((unsigned char *)curr + size + sizeof(chunkhead));
+                    open = (chunkhead *)((byte *)curr + size);
                     open->info = 0;
                     open->size = remainder;
                     open->next = curr->next;
-                    open->prev = (unsigned char *)curr;
-                    curr->next = (unsigned char *)open;
+                    open->prev = (byte *)curr;
+                    curr->next = (byte *)open;
                 }
-                return (unsigned char *)curr + sizeof(chunkhead);
+                return (byte *)curr + sizeof(chunkhead);
             }
             prev = curr;
             curr = (chunkhead *)curr->next;
         }
-        curr = (chunkhead *)sbrk(sizeof(chunkhead) + size);
+        curr = (chunkhead *)sbrk(size);
         if(curr == (void *)-1){ /*O(1)*/
             return NULL;
         }
         curr->info = 1;
         curr->size = size;
         curr->next = NULL;
-        curr->prev = (unsigned char *)prev;
-        prev->next = (unsigned char *)curr;
-        return (unsigned char *)curr + sizeof(chunkhead);
+        curr->prev = (byte *)prev;
+        prev->next = (byte *)curr;
+        return (byte *)curr + sizeof(chunkhead);
     }
     return NULL;
 }
 
-void myfree(unsigned char *address){
+void myfree(byte *address){
+    chunkhead *temp;
     chunkhead *curr = (chunkhead *)(address - sizeof(chunkhead));
     if(curr->next == NULL){ /*O(1)*/
-        sbrk(-(sizeof(chunkhead) + curr->size));
-    } else{ /*O(1)*/
-        chunkhead *temp;
-        curr->info = 0;
-        if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0){ /*O(1)*/
-            temp = (chunkhead *)curr->prev;
-            temp->next = (unsigned char *)curr->next;
-            if(temp->next != NULL){ /*O(1)*/
-                ((chunkhead *)temp->next)->prev = (unsigned char *)temp;
-            }
-            temp->size += curr->size + sizeof(chunkhead);
+        sbrk(-curr->size);
+    }
+    curr->info = 0;
+    if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0){ /*O(1)*/
+        temp = (chunkhead *)curr->prev;
+        temp->next = (byte *)curr->next;
+        if(temp->next != NULL){ /*O(1)*/
+            ((chunkhead *)temp->next)->prev = (byte *)temp;
         }
-        if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0){ /*O(1)*/
-            temp = (chunkhead *)curr->next;
-            curr->next = (unsigned char *)temp->next;
-            if(curr->next != NULL){ /*O(1)*/
-                ((chunkhead *)curr->next)->prev = (unsigned char *)curr;
-            }
-            curr->size += temp->size + sizeof(chunkhead);
+        temp->size += curr->size;
+    }
+    if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0){ /*O(1)*/
+        temp = (chunkhead *)curr->next;
+        curr->next = (byte *)temp->next;
+        if(curr->next != NULL){ /*O(1)*/
+            ((chunkhead *)curr->next)->prev = (byte *)curr;
         }
+        curr->size += temp->size;
     }
 }
 
@@ -121,3 +122,33 @@ void analyse(){
         count += 1;
     }
 }
+
+/*chunkhead* get_last_chunk() //you can change it when you aim for performance
+{
+if(!head) //I have a global void *head = NULL;
+return NULL;
+chunkhead* ch = (chunkhead*)head;
+for (; ch->next; ch = (chunkhead*)ch->next);
+return ch;
+}
+
+void analyze()
+{
+printf("\n--------------------------------------------------------------\n");
+if(!head)
+{
+printf("no heap");
+return;
+}
+chunkhead* ch = (chunkhead*)head;
+for (int no=0; ch; ch = (chunkhead*)ch->next,no++)
+{
+printf("%d | current addr: %x |", no, ch);
+printf("size: %d | ", ch->size);
+printf("info: %d | ", ch->info);
+printf("next: %x | ", ch->next);
+printf("prev: %x", ch->prev);
+printf(" \n");
+}
+printf("program break on address: %x\n",sbrk(0));
+}*/
