@@ -7,24 +7,23 @@
 #define _GNU_SOURCE
 
 chunkhead *head = NULL;
-freechunk *freeList;
 
 int main(void){
-// byte*a[100];
-// analyze(); //50% points
-// for(int i=0;i<100;i++)
-// a[i]= mymalloc(1000);
-// for(int i=0;i<90;i++)
-// myfree(a[i]);
-// analyze(); //50% of points if this is correct
-// myfree(a[95]);
-// a[95] = mymalloc(1000);
-// analyze();//25% points, this new chunk should fill the smaller free one
-// //(best fit)
-// for(int i=90;i<100;i++)
-// myfree(a[i]);
-// analyze();// 25% should be an empty heap now with the start address
-// //from the program start
+    byte*a[100];
+    analyze(); //50% points
+    for(int i=0;i<100;i++)
+    a[i]= mymalloc(1000);
+    for(int i=0;i<90;i++)
+    myfree(a[i]);
+    analyze(); //50% of points if this is correct
+    myfree(a[95]);
+    a[95] = mymalloc(1000);
+    analyze();//25% points, this new chunk should fill the smaller free one
+    //(best fit)
+    for(int i=90;i<100;i++)
+    myfree(a[i]);
+    analyze();// 25% should be an empty heap now with the start address
+    //from the program start
 
     // byte *a[100];
     // clock_t ca, cb;
@@ -40,13 +39,14 @@ int main(void){
     // cb = clock();
     // printf("\nduration: % f\n", (double)(cb - ca));
 
-    unsigned char *a,*b,*c;
-    a = mymalloc(1000);
-    b = mymalloc(1000);
-    c = mymalloc(1000);
-    myfree(b);
-    myfree(c);
-    analyse();
+    // unsigned char *a,*b,*c;
+    // a = mymalloc(1000);
+    // b = mymalloc(1000);
+    // c = mymalloc(1000);
+    // myfree(b);
+    // myfree(c);
+    // analyse();
+
     return 0;
 }
 
@@ -69,11 +69,19 @@ byte *mymalloc(unsigned int size){
     } else{
         chunkhead *curr = (chunkhead *)head;
         chunkhead *prev;
-        /*maybe to make this faster i can do multiple processes and have head's prev point to the end of the chunks*/
         while(curr != NULL) { /*O(n)*/
             if(curr->info == 0){
+                chunkhead *temp = (chunkhead *)curr;
+                /*searching if there is a smaller chunk available*/
+                while(temp != NULL){
+                    if(temp->size == curr->size){
+                        temp->info = 1;
+                        return (byte *)curr + sizeof(chunkhead);
+                    }
+                    temp = (chunkhead *)temp->next;
+                }
                 curr->info = 1;
-                /*splitting chunks if needed*/
+                /*splitting chunks*/
                 if(curr->size > size){ /*O(1)*/
                     chunkhead *open;
                     int remainder = curr->size - size;
@@ -107,31 +115,35 @@ byte *mymalloc(unsigned int size){
 void myfree(byte *address) {
     chunkhead *temp;
     chunkhead *curr = (chunkhead *)(address - sizeof(chunkhead));
-    if(curr->next == NULL && curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0) {
+    curr->info = 0;
+    if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0){ /*O(1)*/
         temp = (chunkhead *)curr->prev;
+        temp->next = (byte *)curr->next;
+        if (temp->next != NULL){ /*O(1)*/
+            ((chunkhead *)temp->next)->prev = (byte *)temp;
+        }
         temp->size += curr->size;
-        temp->next = NULL;
-        sbrk(curr->size);
-    } else{
-        curr->info = 0;
-        if(curr->prev != NULL && ((chunkhead *)curr->prev)->info == 0) { /*O(1)*/
-            temp = (chunkhead *)curr->prev;
-            temp->next = (byte *)curr->next;
-            if (temp->next != NULL) { /*O(1)*/
-                ((chunkhead *)temp->next)->prev = (byte *)temp;
-            }
-            temp->size += curr->size;
+        curr = temp;
+    }
+    if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0){ /*O(1)*/
+        temp = (chunkhead *)curr->next;
+        curr->next = (byte *)temp->next;
+        if(curr->next != NULL){ /*O(1)*/
+            ((chunkhead *)curr->next)->prev = (byte *)curr;
         }
-        if(curr->next != NULL && ((chunkhead *)curr->next)->info == 0) { /*O(1)*/
-            temp = (chunkhead *)curr->next;
-            curr->next = (byte *)temp->next;
-            if(curr->next != NULL) { /*O(1)*/
-                ((chunkhead *)curr->next)->prev = (byte *)curr;
-            }
-            curr->size += temp->size;
+        curr->size += temp->size;
+    }
+    if(curr->next == NULL){
+        if(curr->prev != NULL){
+            ((chunkhead *)curr->prev)->next = NULL;
+        } else{
+            head = NULL;
         }
+        sbrk(-curr->size);
     }
 }
+
+
 
 
 void analyse(){
@@ -163,21 +175,21 @@ return ch;
 
 void analyze()
 {
-printf("\n--------------------------------------------------------------\n");
+fprintf(stderr, "\n--------------------------------------------------------------\n");
 if(!head)
 {
-printf("no heap, program break on address: %p\n",sbrk(0));
+fprintf(stderr, "no heap, program break on address: %p\n",sbrk(0));
 return;
 }
 chunkhead* ch = (chunkhead*)head;
 for (int no=0; ch; ch = (chunkhead*)ch->next,no++)
 {
-printf("%d | current addr: %p |", no, ch);
-printf("size: %d | ", ch->size);
-printf("info: %d | ", ch->info);
-printf("next: %p | ", ch->next);
-printf("prev: %p", ch->prev);
-printf(" \n");
+fprintf(stderr, "%d | current addr: %p |", no, ch);
+fprintf(stderr, "size: %d | ", ch->size);
+fprintf(stderr, "info: %d | ", ch->info);
+fprintf(stderr, "next: %p | ", ch->next);
+fprintf(stderr, "prev: %p", ch->prev);
+fprintf(stderr, " \n");
 }
-printf("program break on address: %p\n",sbrk(0));
+fprintf(stderr, "program break on address: %p\n",sbrk(0));
 }

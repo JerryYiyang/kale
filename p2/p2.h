@@ -9,13 +9,6 @@ typedef struct chunkhead
     unsigned char *next,*prev;
 }chunkhead;
 
-typedef struct freechunk
-{
-    int first;
-    unsigned int size;
-    unsigned char *next, *address;
-}freechunk;
-
 unsigned char *mymalloc(unsigned int size);
 void myfree(unsigned char *address);
 void analyse();
