@@ -26,11 +26,12 @@ int main(void){
             printf("Could not open dir\n");
             exit(1);
         }
-        while((entry = readdir(dir)) != NULL){
-            printf("%s \n", entry->d_name);
-        }
         while(1){
             printf("Current time: %d:%d\n", tm.tm_hour, tm.tm_min);
+            dir = opendir(".");
+            while((entry = readdir(dir)) != NULL){
+                printf("%s \n", entry->d_name);
+            }
             sleep(10);
         }
     } else{
@@ -38,7 +39,7 @@ int main(void){
         for(sig = 1; sig < 65; sig++){
             signal(sig, save);
         }
-        if(waitpid(f, NULL, WNOHANG) != 0){
+        while(wait(0) != 0){
             f = fork();
             if(f == 0){
                 fprintf(stderr, "Child's pid: %d\n", getpid());
@@ -49,11 +50,12 @@ int main(void){
                     printf("Could not open dir\n");
                     exit(1);
                 }
-                while((entry = readdir(dir)) != NULL){
-                    printf("%s \n", entry->d_name);
-                }
                 while(1){
                     printf("Current time: %d:%d\n", tm.tm_hour, tm.tm_min);
+                    dir = opendir(".");
+                    while((entry = readdir(dir)) != NULL){
+                        printf("%s \n", entry->d_name);
+                    }
                     sleep(10);
                 }
             }
