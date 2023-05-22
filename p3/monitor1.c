@@ -75,6 +75,7 @@ int main(void){
             }
             if(*check == 1){
                 kill(f, SIGKILL);
+                wait(0);
                 munmap(check, sizeof(int));
                 munmap(t, sizeof(int));
                 munmap(input, 256);
@@ -84,7 +85,6 @@ int main(void){
         while(wait(0) != 0){
             f = fork();
             if(f == 0){
-                fprintf(stderr, "childpid: %d", getpid());
                 DIR *dir;
                 struct dirent *entry;
                 struct stat sb;
@@ -175,7 +175,6 @@ void printFileStats(struct stat sb){
            printf("Last file access:         %s", ctime(&sb.st_atime));
            printf("Last void printFileStats(struct stat sb)file modification:   %s", ctime(&sb.st_mtime));
              printf("----------------------------------------------------------\n\n");
-
 }
 
 void save(int i){

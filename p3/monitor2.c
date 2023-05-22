@@ -69,6 +69,7 @@ int main(void){
         while(1){
             if(*check == 1){
                 kill(f, SIGKILL);
+                wait(0);
                 munmap(check, sizeof(int));
                 munmap(t, sizeof(int));
                 munmap(input, 256);
