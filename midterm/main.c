@@ -17,8 +17,6 @@ int main(int argc, char *argv[]){
     int pcount, padding;
     color *c;
     int x, y, i, n, h, pix, *freq, stlen;
-    BYTE null;
-    BYTE *N;
     FILEHEADER *fileHeader;
     INFOHEADER *infoHeader;
     flag = argv[1];
@@ -52,16 +50,17 @@ int main(int argc, char *argv[]){
         pix = width * h;
         if(n == 0){
             for(i = 0; i < pix; i++){
-                grey[i] = make_grey((color)c[i]);
+                grey[i] = make_grey(c[i]);
             }
+            return 0;
         } else{
             for(i = pix; i < pcount; i++){
-                grey[i] = make_grey((color)c[i]);
+                grey[i] = make_grey(c[i]);
             }
             wait(0);
             freq = cnt_freq(grey, pcount);
             header = create_header(freq);
-            code = encode(freq, header);
+            code = encode(freq, header, grey, pcount);
             comp = malloc(stlen + 2);
             for(i = 0; i < stlen - 4; i++){
                 comp[i] = argv[2][i];
@@ -83,6 +82,7 @@ int main(int argc, char *argv[]){
     } else{
         decompress(argv[2], flag);
     }
+    return 0;
 }
 
 void readFHeader(FILEHEADER *fh, FILE *f){
@@ -171,16 +171,17 @@ void free_huff_tree(huff* node) {
 
 
 char *create_header(int *freq){
+    int i, len;
     char *result = (char *)malloc(256 * 10 * sizeof(char));
     char buffer[20];
     result[0] = '\0';
-    for(int i = 0; i < 256; i++){
+    for(i = 0; i < 256; i++){
         if(freq[i] != 0){
             sprintf(buffer, "%d %d ", i, freq[i]);
             strcat(result, buffer);
         }
     }
-    int len = strlen(result);
+    len = strlen(result);
     if(len > 0){
         result[len - 1] = '\0';
     }
@@ -209,11 +210,10 @@ int *parse_header(const char *header_string){
     return freqlist;
 }
 
-char *encode(int *freqlist, char *header){
+char *encode(int *freqlist, char *header, BYTE *grey, int pcount){
     huff *hufftree;
     char *codes, *copy, *token;
     int i, size, char_count, count, scount, *freq, *data;
-    char arr[MAX_TREE_HT];
     size = 0;
     for(i = 0; i < 256; i++){
         if(freqlist[i] != 0){
@@ -224,7 +224,8 @@ char *encode(int *freqlist, char *header){
     freq = malloc(size * sizeof(int));
     char_count = 0;
     count = 0;
-    copy = strdup(header);
+    copy = (char *)malloc(strlen(header) + 1);
+    strcpy(copy, header);
     token = strtok(copy, " ");
     for(i = 1; token != NULL; i++){
         if(i % 2 == 0){
@@ -236,7 +237,7 @@ char *encode(int *freqlist, char *header){
     }
     count = 0;
     scount = 0;
-    copy = strdup(header);
+    strcpy(copy, header);
     token = strtok(copy, " ");
     while (token != NULL) {
         if (count % 2 == 0) {
@@ -246,9 +247,8 @@ char *encode(int *freqlist, char *header){
         count++;
         token = strtok(NULL, " ");
     }
-
     hufftree = buildHuffmanTree(data, freq, size);
-    codes = getCodes(hufftree);
+    codes = encode_help(freqlist, grey, pcount, hufftree);
     free(data);
     free(freq);
     free(copy);
@@ -265,13 +265,10 @@ void decompress(char *comp, char *flag){
     char *header;
     BYTE null;
     BYTE *N;
-    size_t header_bufsize = 0;
-    size_t codes_bufsize = 0;
-    ssize_t header_length, codes_length, j;
     huff *hufftree, *temp;
-    BYTE *result;
-    char arr[MAX_TREE_HT], *token, *copy, *code;
-    int i, size, count, scount, char_count, chars, check, *freqlist, *freq, *data;
+    int *result;
+    char *token, *copy, *code;
+    int i, size, count, scount, char_count, chars, len, *freqlist, *freq, *data;
     in = read->file;
     fileheader = malloc(sizeof(FILEHEADER));
     infoheader = malloc(sizeof(INFOHEADER));
@@ -294,8 +291,8 @@ void decompress(char *comp, char *flag){
     freq = malloc(size * sizeof(int));
     char_count = 0;
     count = 0;
-    copy = strdup(header);
-    free(copy);
+    copy = (char *)malloc(strlen(header) + 1);
+    strcpy(copy, header);
     token = strtok(copy, " ");
     for(i = 1; token != NULL; i++){
         if(i % 2 == 0){
@@ -307,7 +304,7 @@ void decompress(char *comp, char *flag){
     }
     count = 0;
     scount = 0;
-    copy = strdup(header);
+    strcpy(copy, header);
     token = strtok(copy, " ");
     while (token != NULL) {
         if (count % 2 == 0) {
@@ -320,20 +317,21 @@ void decompress(char *comp, char *flag){
     hufftree = buildHuffmanTree(data, freq, size);
     temp = hufftree;
     chars = 0;
-    result = (char *)malloc(char_count + 1);
+    result = malloc(sizeof(int) * char_count);
     i = 0;
     code = read_bits_as_string(read->file);
-    while(chars < char_count){
+    len = strlen(code);
+    for(i = 0; i < len; i++){
         if(code[i] == '0'){
             temp = temp->left;
         } else{
             temp = temp->right;
         }
-        if (temp->left == NULL && temp->right == NULL){
-            result[chars++] = (char)temp->data;
+        if (is_leaf(temp)){
+            result[chars] = (int)temp->data;
             temp = hufftree;
+            chars++;
         }
-        i++;
     }
     out = fopen("out.bmp", "wb");
     writeFHeader(fileheader, out);
@@ -345,7 +343,7 @@ void decompress(char *comp, char *flag){
         int avg;
         for(i = 0; i < pcount; i++){
             color *c = malloc(sizeof(color));
-            avg = (int)result[i];
+            avg = result[i];
             c->blue = (BYTE)avg;
             c->green = (BYTE)avg;
             c->red = (BYTE)avg;
@@ -385,11 +383,9 @@ void swapMinHeapNode(huff** a, huff** b){
 }
 
 void minHeapify(struct MinHeap* minHeap, int idx){
- 
     int smallest = idx;
     int left = 2 * idx + 1;
     int right = 2 * idx + 2;
- 
     if (left < minHeap->size
         && minHeap->array[left]->freq
                < minHeap->array[smallest]->freq)
@@ -420,8 +416,9 @@ huff* extractMin(struct MinHeap* minHeap){
 }
 
 void insertMinHeap(struct MinHeap* minHeap, huff* minHeapNode){
+    int i;
     ++minHeap->size;
-    int i = minHeap->size - 1;
+    i = minHeap->size - 1;
     while (i
            && minHeapNode->freq
                   < minHeap->array[(i - 1) / 2]->freq) {
@@ -446,9 +443,7 @@ int is_leaf(huff* root){
     return 0;
 }
 
-struct MinHeap* createMinHeap(unsigned capacity)
- 
-{
+struct MinHeap* createMinHeap(unsigned capacity) {
     struct MinHeap* minHeap = (struct MinHeap*)malloc(sizeof(struct MinHeap));
     minHeap->size = 0;
  
@@ -459,8 +454,9 @@ struct MinHeap* createMinHeap(unsigned capacity)
 }
 
 struct MinHeap* createAndBuildMinHeap(int data[], int freq[], int size){
+    int i;
     struct MinHeap* minHeap = createMinHeap(size);
-    for (int i = 0; i < size; ++i)
+    for (i = 0; i < size; ++i)
         minHeap->array[i] = newNode(data[i], freq[i]);
     minHeap->size = size;
     buildMinHeap(minHeap);
@@ -487,38 +483,59 @@ huff* buildHuffmanTree(int data[], int freq[], int size){
     return extractMin(minHeap);
 }
 
-void getCodesHelper(struct MinHeapNode* root, int arr[], int top, char **result) {
-
-    if (root->left) {
-        arr[top] = 0;
-        getCodesHelper(root->left, arr, top + 1, result);
+char **create_code(struct MinHeapNode *node) {
+    int i;
+    char **lst = (char **)malloc(256 * sizeof(char *));
+    for (i = 0; i < 256; i++) {
+        lst[i] = (char *)malloc(1);
+        lst[i][0] = '\0';
     }
-
-    if (root->right) {
-        arr[top] = 1;
-        getCodesHelper(root->right, arr, top + 1, result);
+    if (node != NULL) {
+        code_help(node, lst, "");
     }
+    return lst;
+}
 
-    if (is_leaf(root)) {
-        for (int i = 0; i < top; ++i) {
-            char bit = arr[i] + '0';
-            size_t len = strlen(*result);
-            *result = (char *)realloc(*result, len + 2);
-            (*result)[len] = bit;
-            (*result)[len + 1] = '\0';
-        }
+void code_help(struct MinHeapNode *node, char **lst, char *path) {
+    char *left_path, *right_path;
+    if (is_leaf(node)) {
+        lst[node->data] = my_strdup(path);
+    } else {
+        left_path = (char *)malloc(strlen(path) + 2);
+        strcpy(left_path, path);
+        strcat(left_path, "0");
+        code_help(node->left, lst, left_path);
+        free(left_path);
+        right_path = (char *)malloc(strlen(path) + 2);
+        strcpy(right_path, path);
+        strcat(right_path, "1");
+        code_help(node->right, lst, right_path);
+        free(right_path);
     }
 }
 
-char *getCodes(struct MinHeapNode *root) {
-    int arr[MAX_TREE_HT], top = 0;
-    char *result = (char *)calloc(1, sizeof(char));
-    result[0] = '\0';
-    getCodesHelper(root, arr, top, &result);
-    return result;
+char *encode_help(int *freqlist, BYTE *grey, int num_pixels, huff *hufftree) {
+    char **codes, *code;
+    int i, code_pos, index, max_length = 0;
+    codes = create_code(hufftree);
+    for (i = 0; i < 256; i++) {
+        max_length += freqlist[i] * strlen(codes[i]);
+    }
+    code = (char *)malloc(max_length + 1);
+    code[0] = '\0';
+    code_pos = 0;
+    for (i = 0; i < num_pixels; i++) {
+        index = (int)grey[i];
+        strcpy(code + code_pos, codes[index]);
+        code_pos += strlen(codes[index]);
+    }
+    code[code_pos] = '\0';
+    for (i = 0; i < 256; i++) {
+        free(codes[i]);
+    }
+    free(codes);
+    return code;
 }
-
-
 
 HuffmanBitWriter *huffman_bit_writer_init(const char *fname){
     HuffmanBitWriter *writer = (HuffmanBitWriter *)malloc(sizeof(HuffmanBitWriter));
@@ -542,7 +559,9 @@ void huffman_bit_writer_write_str(HuffmanBitWriter *writer, const char *str){
 }
 
 void huffman_bit_writer_write_code(HuffmanBitWriter *writer, const char *code){
-    for (int i = 0; i < strlen(code); i++) {
+    int i;
+    int code_len = strlen(code);
+    for (i = 0; i < code_len; i++) {
         char bit = code[i];
         if (bit == '1') {
             writer->byte += 1;
@@ -557,6 +576,7 @@ void huffman_bit_writer_write_code(HuffmanBitWriter *writer, const char *code){
         }
     }
 }
+
 
 HuffmanBitReader *huffman_bit_reader_init(const char *fname){
     HuffmanBitReader *reader = (HuffmanBitReader *)malloc(sizeof(HuffmanBitReader));
@@ -580,18 +600,19 @@ char *huffman_bit_reader_read_str(HuffmanBitReader *reader){
 }
 
 char *read_bits_as_string(FILE *file){
+    int bit_position;
+    int current_bit;
     size_t buffer_size = 4096;
     size_t buffer_pos = 0;
     char *bit_str = (char *)malloc(buffer_size);
     uint8_t current_byte;
     while (fread(&current_byte, sizeof(uint8_t), 1, file) == 1) {
-        for (int bit_position = 0; bit_position < 8; bit_position++) {
+        for (bit_position = 0; bit_position < 8; bit_position++) {
             if (buffer_pos + 1 >= buffer_size) {
                 buffer_size *= 2;
                 bit_str = (char *)realloc(bit_str, buffer_size);
             }
-
-            int current_bit = (current_byte >> (7 - bit_position)) & 1;
+            current_bit = (current_byte >> (7 - bit_position)) & 1;
             bit_str[buffer_pos++] = current_bit ? '1' : '0';
         }
     }
@@ -613,7 +634,6 @@ void huff_bit_writer(FILEHEADER *fileheader, INFOHEADER *infoheader, char *comp,
     huffman_bit_writer_close(write);
 }
 
-
 huff* newNode(int data, unsigned freq)
 {
     huff* temp = (huff*)malloc(
@@ -626,3 +646,11 @@ huff* newNode(int data, unsigned freq)
     return temp;
 }
 
+char *my_strdup(const char *s){
+    size_t len = strlen(s) + 1;
+    char *new_str = (char *)malloc(len);
+    if (new_str) {
+        memcpy(new_str, s, len);
+    }
+    return new_str;
+}

@@ -68,12 +68,12 @@ struct HuffmanBitReader{
 
 int *cnt_freq(BYTE *c, int pcount);
 void free_code(char **lst);
-//huff *create_huff_tree(int *freq);
 void free_huff_tree(huff *node);
 void help_free_huff_tree(huff *node);
 char *create_header(int *freq);
 int *parse_header(const char *header_string);
-char *encode(int *freqlist, char *header);
+/*char *encode(int *freqlist, char *header);*/
+char *encode(int *freqlist, char *header, BYTE *grey, int pcount);
 HuffmanBitWriter *huffman_bit_writer_init(const char *fname);
 void huffman_bit_writer_close(HuffmanBitWriter *writer);
 void huffman_bit_writer_write_str(HuffmanBitWriter *writer, const char *str);
@@ -84,7 +84,6 @@ char *huffman_bit_reader_read_str(HuffmanBitReader *reader);
 void huff_writer(FILEHEADER *fileheader, INFOHEADER *infoheader,char *header, char *codes, char *comp);
 void huff_bit_writer(FILEHEADER *fileheader, INFOHEADER *infoheader, char *comp, char *code, char *header);
 void decompress(char *comp, char *flag);
-void decode(char *comp, FILEHEADER *fileheader, INFOHEADER *infoheader);
 char *read_bits_as_string(FILE *file);
 
 
@@ -110,9 +109,13 @@ void buildMinHeap(struct MinHeap* minHeap);
 int is_leaf(huff* root);
 struct MinHeap* createAndBuildMinHeap(int data[], int freq[], int size);
 huff* buildHuffmanTree(int data[], int freq[], int size);
-void printArr(int arr[], int n);
-//char *getCodes(struct MinHeapNode* root, char arr[], int top);
 char *getCodes(struct MinHeapNode *root);
 void getCodesHelper(struct MinHeapNode* root, int arr[], int top, char **result);
-char *HuffmanCodes(int data[], int freq[], int size);
 huff* newNode(int data, unsigned freq);
+
+char **create_code(huff *node);
+void code_help(huff *node, char **lst, char *path);
+char *encode_help(int *freqlist, BYTE *grey, int num_pixels, huff *hufftree);
+
+ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+char *my_strdup(const char *s);
