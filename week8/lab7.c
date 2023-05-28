@@ -53,5 +53,5 @@ int myread(mypipe* pipe, byte* buffer, int size){
         buffer[i] = pipe->pipebuffer[(pipe->start_occupied + i) % pipe->buffersize];
     }
     pipe->start_occupied = (pipe->start_occupied + size) % pipe->buffersize;
-    return(size);
+    return size;
 }
