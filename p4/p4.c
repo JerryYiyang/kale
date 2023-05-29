@@ -103,7 +103,7 @@ int main(){
                         /*need something for not being able to find*/
                         exit(0);
                     } else{
-                        /*i dont think f flag is necessary*/
+                        /*i dont think f flag is necessary for finding files*/
                         char *extension, *ext;
                         extension = strrchr(flag1, ':');
                         extension = &extension[1];
@@ -171,7 +171,26 @@ int main(){
                         /*need something for not being able to find*/
                         exit(0);
                     } else{
-
+                        char *extension, *ext, cwd[1024];
+                        extension = strrchr(flag1, ':');
+                        extension = &extension[1];
+                        getcwd(cwd, 1024);
+                        dir = opendir(".");
+                        while((entry = readdir(dir)) != NULL){
+                            ext = strrchr(entry->d_name, '.');
+                            if (ext != NULL) {
+                                ext = &ext[1];
+                            } else {
+                                continue;
+                            }
+                            if(strcmp(extension, ext) == 0){
+                                find_string(entry->d_name, item, cwd, num);
+                                kill(getppid(), SIGUSR1);
+                                exit(0);
+                            } else{
+                                continue;
+                            }
+                        }
                     }
                 } else{
                     /*no flags, finding string*/
