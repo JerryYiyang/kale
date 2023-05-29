@@ -22,6 +22,7 @@ void redirect(int i);
 void find_file_s(char *directory, char *filename, char *cwd, int num);
 char *remove_quotes(char *input);
 void find_string(char *filename, char *item, char *cwd, int num);
+void find_string_s(char *directory, char *item, char *cwd, int num);
 
 int main(){
     int f, temp, *children;
@@ -39,6 +40,7 @@ int main(){
         strncpy((*list)[f], "", 256);
     }
     /*should while(1) be in the parent? there are some issues with printing when doing find*/
+    /*there might be an issue with needing to reopen pipe. maybe need to make fd shared memory and pipe(fd) at start of while loop*/
     while(1){
         fflush(stdin);
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
@@ -83,6 +85,7 @@ int main(){
                     break;
                 }
             }
+            /*find file*/
             if(item[0] != '"'){
                 if(flag1 != NULL && flag2 != NULL){
                     
@@ -90,21 +93,6 @@ int main(){
                     if(flag1[1] == 's'){
                         char cwd[1024];
                         getcwd(cwd, 1024);
-                        dir = opendir(".");
-                        while((entry = readdir(dir)) != NULL){
-                            if(strcmp(entry->d_name, item) == 0){
-                                char cwd[1024];
-                                getcwd(cwd, 1024);
-                                close(fd[0]);
-                                enter(num);
-                                write(fd[1], &num, sizeof(int));
-                                write(fd[1], cwd, 1024);
-                                leave(num);
-                                kill(getppid(), SIGUSR1);
-                                close(fd[1]);
-                                exit(0);
-                            }
-                        }
                         find_file_s(".", item, cwd, num);
                         kill(getppid(), SIGUSR1);
                         /*need something for not being able to find*/
@@ -142,6 +130,7 @@ int main(){
                     close(fd[1]);
                     exit(0);
                 }
+            /*find string*/
             } else{
                 struct stat path_stat;
                 item = remove_quotes(item);
@@ -151,12 +140,15 @@ int main(){
                     if(flag1[1] == 's'){
                         char cwd[1024];
                         getcwd(cwd, 1024);
+                        find_string_s(".", item, cwd, num);
+                        kill(getppid(), SIGUSR1);
+                        /*need something for not being able to find*/
+                        exit(0);
                     } else{
 
                     }
                 } else{
                     /*no flags, finding string*/
-                    printf("%s\n", item);
                     char cwd[1024];
                     getcwd(cwd, 1024);
                     dir = opendir(".");
@@ -270,6 +262,7 @@ void leave(int p){
 void redirect(int i){
     int num;
     char result[1024] = {0};
+    fflush(stdin);
     dup2(fd[0], STDIN_FILENO);
     close(fd[1]);
     enter(10);
@@ -300,7 +293,7 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
             find_file_s(path, filename, cwd, num);
         } else {
             if (strcmp(entry->d_name, filename) == 0) {
-                snprintf(full_path, sizeof(full_path), "%s/%s/%s", cwd, directory, entry->d_name);
+                snprintf(full_path, sizeof(full_path), "%s/%s", cwd, directory);
                 close(fd[0]);
                 enter(num);
                 write(fd[1], &num, sizeof(int));
@@ -330,6 +323,10 @@ char *remove_quotes(char *input){
 void find_string(char *filename, char *item, char *cwd, int num){
     char buffer[1024];
     FILE *file = fopen(filename, "r");
+    /*the check for file == NULL shouldn't make the program work but for some reason it works*/
+    if (file == NULL){
+        return;
+    }
     while (fgets(buffer, 1024, file)){
         if (strstr(buffer, item)){
             close(fd[0]);
@@ -342,4 +339,27 @@ void find_string(char *filename, char *item, char *cwd, int num){
         }
     }
     fclose(file);
+}
+
+void find_string_s(char *directory, char *item, char *cwd, int num){
+    DIR *dir;
+    struct dirent *entry;
+    struct stat path_stat;
+    char path[1024];
+    char full_path[1024];
+    dir = opendir(directory);
+    while ((entry = readdir(dir)) != NULL){
+        snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
+        stat(path, &path_stat);
+        if (S_ISDIR(path_stat.st_mode)){
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+                continue;
+            }
+            find_string_s(path, item, cwd, num);
+        } else{
+            snprintf(full_path, sizeof(full_path), "%s/%s", cwd, entry->d_name);
+            find_string(entry->d_name, item, full_path, num);
+        }
+    }
+    closedir(dir);
 }
