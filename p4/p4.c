@@ -23,6 +23,7 @@ void find_file_s(char *directory, char *filename, char *cwd, int num);
 char *remove_quotes(char *input);
 void find_string(char *filename, char *item, char *cwd, int num);
 void find_string_s(char *directory, char *item, char *cwd, int num);
+void find_string_fs(char *directory, char *item, char *type, char *cwd, int num);
 
 int main(){
     int f, temp, *children;
@@ -89,10 +90,6 @@ int main(){
             /*find file*/
             if(item[0] != '"'){
                 if(flag1 != NULL && flag2 != NULL){
-                    char *extension, *ext, cwd[1024];
-                    extension = strrchr(flag1, ':');
-                    extension = &extension[1];
-                    getcwd(cwd, 1024);
 
                 } else if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
@@ -115,7 +112,6 @@ int main(){
                             } else {
                                 continue;
                             }
-                            //printf("extension: %s, ext: %s\n", extension, ext);
                             if(strcmp(extension, ext) == 0 && strcmp(entry->d_name, item) == 0){
                                 char cwd[1024];
                                 getcwd(cwd, 1024);
@@ -161,7 +157,14 @@ int main(){
                 struct stat path_stat;
                 item = remove_quotes(item);
                 if(flag1 != NULL && flag2 != NULL){
-                    
+                    char *extension, *ext, cwd[1024];
+                    extension = strrchr(flag1, ':');
+                    extension = &extension[1];
+                    getcwd(cwd, 1024);
+                    find_string_fs(".", item, extension, cwd, num);
+                    kill(getppid(), SIGUSR1);
+                    /*need something for not being able to find*/
+                    exit(0);
                 } else if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
                         char cwd[1024];
@@ -171,6 +174,7 @@ int main(){
                         /*need something for not being able to find*/
                         exit(0);
                     } else{
+                        /*this doesnt work rn*/
                         char *extension, *ext, cwd[1024];
                         extension = strrchr(flag1, ':');
                         extension = &extension[1];
@@ -338,7 +342,7 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
                 continue;
             }
             find_file_s(path, filename, cwd, num);
-        } else{
+        } else if(S_ISREG(path_stat.st_mode)){
             if (strcmp(entry->d_name, filename) == 0){
                 snprintf(full_path, sizeof(full_path), "%s/%s", cwd, directory);
                 close(fd[0]);
@@ -404,17 +408,15 @@ char *remove_quotes(char *input){
     return output;
 }
 
-void find_string(char *filename, char *item, char *cwd, int num){
-    char buffer[1024];
-    FILE *file = fopen(filename, "r");
-    /*the check for file == NULL shouldn't make the program work but for some reason it works (for -s flag and its in the starting directory)*/
+void find_string(char *filepath, char *item, char *cwd, int num){
+    char buffer[1024], full_path[1024];
+    FILE *file = fopen(filepath, "r");
     if (file == NULL){
         return;
     }
     while (fgets(buffer, 1024, file)){
         if (strstr(buffer, item)){
-            char full_path[1024];
-            snprintf(full_path, sizeof(full_path), "%s/%s", cwd, filename);
+            snprintf(full_path, sizeof(full_path), "%s/%s", cwd, filepath);
             close(fd[0]);
             enter(num);
             write(fd[1], &num, sizeof(int));
@@ -428,12 +430,10 @@ void find_string(char *filename, char *item, char *cwd, int num){
 }
 
 void find_string_s(char *directory, char *item, char *cwd, int num){
-    /*currently doesnt work*/
     DIR *dir;
     struct dirent *entry;
     struct stat path_stat;
-    char path[1024];
-    char full_path[1024];
+    char path[1024], full_path[1024];
     dir = opendir(directory);
     while ((entry = readdir(dir)) != NULL){
         snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
@@ -442,10 +442,40 @@ void find_string_s(char *directory, char *item, char *cwd, int num){
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
                 continue;
             }
-            find_string_s(path, item, cwd, num);
-        } else{
+            find_string_s(path, item, cwd, num); 
+        } else if(S_ISREG(path_stat.st_mode)){
             snprintf(full_path, sizeof(full_path), "%s", cwd);
-            find_string(entry->d_name, item, full_path, num);
+            find_string(path, item, cwd, num); 
+        }
+    }
+    closedir(dir);
+}
+
+void find_string_fs(char *directory, char *item, char *type, char *cwd, int num){
+    DIR *dir;
+    struct dirent *entry;
+    struct stat path_stat;
+    char path[1024], full_path[1024], *ext;
+    dir = opendir(directory);
+    while ((entry = readdir(dir)) != NULL){
+        snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
+        stat(path, &path_stat);
+        if (S_ISDIR(path_stat.st_mode)){
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+                continue;
+            }
+            find_string_fs(path, item, type, cwd, num);
+        } else if(S_ISREG(path_stat.st_mode)){
+            ext = strrchr(entry->d_name, '.');
+            if (ext != NULL){
+                ext = &ext[1];
+            } else{
+                continue;
+            }
+            if (strcmp(type, ext) == 0){
+                snprintf(full_path, sizeof(full_path), "%s", cwd);
+                find_string(path, item, cwd, num); 
+            }
         }
     }
     closedir(dir);
