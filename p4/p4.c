@@ -11,19 +11,12 @@
 #include <stdint.h>
 #include <time.h>
 #include <sys/mman.h>
+#include "p4.h"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
 int *flag, *turn, fd[2], save, *wat;
 /*for flag: 0 = idle, 1 = waiting, 2 = active*/
-void enter(int p);
-void leave(int p);
-void redirect(int i);
-void find_file_s(char *directory, char *filename, char *cwd, int num);
-char *remove_quotes(char *input);
-void find_string(char *filename, char *item, char *cwd, int num);
-void find_string_s(char *directory, char *item, char *cwd, int num);
-void find_string_fs(char *directory, char *item, char *type, char *cwd, int num);
 
 int main(){
     int f, temp, *children;
@@ -35,13 +28,11 @@ int main(){
     wat = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     save = dup(STDIN_FILENO);
     *wat = 10;
-    pipe(fd);
     for(f = 0; f < 10; f++){
         children[f] = 0;
         strncpy((*list)[f], "", 256);
     }
     /*should while(1) be in the parent? there are some issues with printing when doing find*/
-    /*there might be an issue with needing to reopen pipe. maybe need to make fd shared memory and pipe(fd) at start of while loop*/
     while(1){
         fflush(stdin);
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
@@ -58,6 +49,7 @@ int main(){
             fprintf(stderr, "There are 10 child processes running already\n");
             continue;
         }
+        pipe(fd);
         f = fork();
         *turn = 0;
         if(f == 0){
@@ -146,6 +138,7 @@ int main(){
                     }
                     close(fd[0]);
                     enter(num);
+                    write(fd[1], &num, sizeof(int));
                     write(fd[1], "file not found", strlen("file not found") + 1);
                     leave(num);
                     kill(getppid(), SIGUSR1);
