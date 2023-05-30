@@ -32,6 +32,7 @@ int main(){
         strncpy((*list)[f], "", 256);
     }
     *turn = 0;
+    pipe(fd);
     /*should pipe(fd) be inside or outside parent*/
     while(1){
         found = 0;
@@ -50,19 +51,22 @@ int main(){
             fprintf(stderr, "There are 10 child processes running already\n");
             continue;
         }
-        pipe(fd);
         f = fork();
         if(f == 0){
             DIR *dir;
             struct dirent *entry;
             char *item, *token, *flag1, *flag2;
             int num, i;
+            close(fd[0]);
             token = strtok(input, " ");
             if(strcmp(token, "quit") == 0 || strcmp(token, "q") == 0){
+                close(fd[1]);
                 exit(0);
             } else if(strcmp(token, "kill") == 0){
+                close(fd[1]);
                 exit(0);
             } else if(strcmp(token, "list") == 0){
+                close(fd[1]);
                 exit(0);
             }
             item = strtok(NULL, " ");
@@ -107,6 +111,7 @@ int main(){
                             leave(num);
                         }
                         kill(getppid(), SIGUSR1);
+                        close(fd[1]);
                         /*need something for not being able to find*/
                         exit(0);
                     } else{
@@ -144,7 +149,6 @@ int main(){
                         if(strcmp(entry->d_name, item) == 0){
                             char cwd[1024];
                             getcwd(cwd, 1024);
-                            close(fd[0]);
                             enter(num);
                             write(fd[1], &num, sizeof(int));
                             write(fd[1], cwd, 1024);
@@ -154,12 +158,12 @@ int main(){
                             exit(0);
                         }
                     }
-                    close(fd[0]);
                     enter(num);
                     write(fd[1], &num, sizeof(int));
                     write(fd[1], "file not found", strlen("file not found") + 1);
                     leave(num);
                     kill(getppid(), SIGUSR1);
+                    close(fd[1]);
                     exit(0);
                 }
             /*find string*/
@@ -171,7 +175,6 @@ int main(){
                     extension = strrchr(flag1, ':');
                     extension = &extension[1];
                     getcwd(cwd, 1024);
-                    close(fd[0]);
                     find_string_fs(".", item, extension, cwd, num);
                     if(found == 0){
                         enter(num);
@@ -179,14 +182,13 @@ int main(){
                         write(fd[1], "string not found", strlen("string not found") + 1);
                         leave(num);
                     }
-                    close(fd[1]);
                     kill(getppid(), SIGUSR1);
+                    close(fd[1]);
                     exit(0);
                 } else if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
                         char cwd[1024];
                         getcwd(cwd, 1024);
-                        close(fd[0]);
                         find_string_s(".", item, cwd, num);
                         if(found == 0){
                             enter(num);
@@ -194,8 +196,8 @@ int main(){
                             write(fd[1], "string not found", strlen("string not found") + 1);
                             leave(num);
                         }
-                        close(fd[1]);
                         kill(getppid(), SIGUSR1);
+                        close(fd[1]);
                         exit(0);
                     } else{
                         char *extension, *ext, cwd[1024];
@@ -203,7 +205,6 @@ int main(){
                         extension = &extension[1];
                         getcwd(cwd, 1024);
                         dir = opendir(".");
-                        close(fd[0]);
                         while((entry = readdir(dir)) != NULL){
                             ext = strrchr(entry->d_name, '.');
                             if (ext != NULL) {
@@ -219,8 +220,8 @@ int main(){
                                     write(fd[1], "string not found", strlen("string not found") + 1);
                                     leave(num);
                                 }
-                                close(fd[1]);
                                 kill(getppid(), SIGUSR1);
+                                close(fd[1]);
                                 exit(0);
                             } else{
                                 continue;
@@ -232,7 +233,6 @@ int main(){
                     char cwd[1024];
                     getcwd(cwd, 1024);
                     dir = opendir(".");
-                    close(fd[0]);
                     while((entry = readdir(dir)) != NULL){
                         stat(entry->d_name, &path_stat);
                         if (S_ISREG(path_stat.st_mode)){
@@ -243,10 +243,9 @@ int main(){
                                 write(fd[1], "string not found", strlen("string not found") + 1);
                                 leave(num);
                             }
-                            close(fd[1]);
                             kill(getppid(), SIGUSR1);
+                            close(fd[1]);
                             exit(0);
-                            /*need something for not able to find*/
                         }
                     }
                 }
@@ -357,7 +356,6 @@ void redirect(int i){
     waitpid(children[num], NULL, 0);
     children[num] = 0;
     strncpy((*list)[num], "", 256);
-    //printf("%d\n", num);
 }
 
 void find_file_s(char *directory, char *filename, char *cwd, int num){
