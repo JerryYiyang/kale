@@ -15,25 +15,26 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-int *flag, *turn, fd[2], save, *wat;
+int *flag, *turn, fd[2], save, *children, found;
 /*for flag: 0 = idle, 1 = waiting, 2 = active*/
+char(*list)[10][256];
 
 int main(){
-    int f, temp, *children;
-    char input[256], (*list)[10][256];
+    int f, temp;
+    char input[256];
     children = mmap(NULL, 10 * sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     list = mmap(NULL, 10 * 256, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     flag = mmap(NULL, sizeof(int) * 3, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     turn = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
-    wat = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     save = dup(STDIN_FILENO);
-    *wat = 10;
     for(f = 0; f < 10; f++){
         children[f] = 0;
         strncpy((*list)[f], "", 256);
     }
-    /*should while(1) be in the parent? there are some issues with printing when doing find*/
+    *turn = 0;
+    /*should pipe(fd) be inside or outside parent*/
     while(1){
+        found = 0;
         fflush(stdin);
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
         fgets(input, sizeof(input), stdin);
@@ -51,7 +52,6 @@ int main(){
         }
         pipe(fd);
         f = fork();
-        *turn = 0;
         if(f == 0){
             DIR *dir;
             struct dirent *entry;
@@ -154,25 +154,40 @@ int main(){
                     extension = strrchr(flag1, ':');
                     extension = &extension[1];
                     getcwd(cwd, 1024);
+                    close(fd[0]);
                     find_string_fs(".", item, extension, cwd, num);
+                    if(found == 0){
+                        enter(num);
+                        write(fd[1], &num, sizeof(int));
+                        write(fd[1], "file not found", strlen("file not found") + 1);
+                        leave(num);
+                    }
+                    close(fd[1]);
                     kill(getppid(), SIGUSR1);
-                    /*need something for not being able to find*/
                     exit(0);
                 } else if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
                         char cwd[1024];
                         getcwd(cwd, 1024);
+                        close(fd[0]);
+                        printf("%s\n", item);
                         find_string_s(".", item, cwd, num);
+                        if(found == 0){
+                            enter(num);
+                            write(fd[1], &num, sizeof(int));
+                            write(fd[1], "file not found", strlen("file not found") + 1);
+                            leave(num);
+                        }
+                        close(fd[1]);
                         kill(getppid(), SIGUSR1);
-                        /*need something for not being able to find*/
                         exit(0);
                     } else{
-                        /*this doesnt work rn*/
                         char *extension, *ext, cwd[1024];
                         extension = strrchr(flag1, ':');
                         extension = &extension[1];
                         getcwd(cwd, 1024);
                         dir = opendir(".");
+                        close(fd[0]);
                         while((entry = readdir(dir)) != NULL){
                             ext = strrchr(entry->d_name, '.');
                             if (ext != NULL) {
@@ -182,6 +197,7 @@ int main(){
                             }
                             if(strcmp(extension, ext) == 0){
                                 find_string(entry->d_name, item, cwd, num);
+                                close(fd[1]);
                                 kill(getppid(), SIGUSR1);
                                 exit(0);
                             } else{
@@ -194,10 +210,12 @@ int main(){
                     char cwd[1024];
                     getcwd(cwd, 1024);
                     dir = opendir(".");
+                    close(fd[0]);
                     while((entry = readdir(dir)) != NULL){
                         stat(entry->d_name, &path_stat);
                         if (S_ISREG(path_stat.st_mode)){
                             find_string(entry->d_name, item, cwd, num);
+                            close(fd[1]);
                             kill(getppid(), SIGUSR1);
                             exit(0);
                             /*need something for not able to find*/
@@ -209,44 +227,43 @@ int main(){
             char *token, *copy;
             int i, num, status;
             signal(SIGUSR1, redirect);
-            if(*wat != 10){
-                /*running into an issue rn where this doesnt get triggered
-                should be because signal() runs in parallel so wat doesnt get 
-                updated in time*/
-                /*also running into a seg fault here, prolly bc of the same problem*/
-                waitpid(children[*wat], &status, 0);
-                children[*wat] = 0;
-                strncpy((*list)[*wat], "", 256);
-                *wat = 10;
-                continue;
-            }
             copy = (char*)malloc(256 * sizeof(char));
             strncpy(copy, input, 256);
+            for(i = 0; i < 10; i++){
+                if(children[i] == 0){
+                    children[i] = f;
+                    strncpy((*list)[i], copy, 256);
+                    break;
+                }
+            }
             token = strtok(input, " ");
             if(strcmp(token, "quit") == 0 || strcmp(token, "q") == 0){
-                wait(0);
                 for(i = 0; i < 10; i++){
                     if(children[i] != 0){
                         kill(children[i], SIGKILL);
-                        //waitpid(children[i], &status, 0);
-                        children[i] = 0;
-                        strncpy((*list)[i], "", 256);
+                        waitpid(children[i], NULL, 0);
                     }
                 }
                 munmap(children, 10 * sizeof(int));
                 munmap(list, 10 * 256);
                 munmap(flag, sizeof(int) * 3);
                 munmap(turn, sizeof(int));
-                munmap(wat, sizeof(int));
                 return 0;
             } else if(strcmp(token, "kill") == 0){
                 int kil;
                 token = strtok(NULL, " ");
                 kil = atoi(token);
-                wait(0);
                 kill(children[kil-1], SIGKILL);
+                waitpid(children[kil-1], NULL, 0);
+                children[kil-1] = 0;
                 strncpy((*list)[kil-1], "", 256);
-                //waitpid(children[kil-1], &status, 0);
+                wait(0);
+                for(kil = 0; kil < 10; kil++){
+                    if(children[kil] == f){
+                        children[kil] = 0;
+                        strncpy((*list)[kil], "", 256);
+                    }
+                }
                 continue;
             } else if(strcmp(token, "list") == 0){
                 int i;
@@ -257,15 +274,6 @@ int main(){
                     }
                 }
                 continue;
-            }
-            for(i = 0; i < 10; i++){
-                if(children[i] == 0){
-                    children[i] = f;
-                    /*this waitpid may or may not work)*/
-                    waitpid(f, &status, WNOHANG);
-                    strncpy((*list)[i], copy, 256);
-                    break;
-                }
             }
             free(copy);
         }
@@ -287,10 +295,10 @@ void enter(int p){
         }
         flag[p] = 2;
         index = 0;
-        while((index < 2) && ((index == p) || (flag[index] != 2))){
+        while((index < 11) && ((index == p) || (flag[index] != 2))){
             index++;
         }
-    } while(!(index >= 2) && ((*turn == p) || (flag[*turn] == 0)));
+    } while(!(index >= 11) && ((*turn == p) || (flag[*turn] == 0)));
     *turn = p;
 }
 
@@ -316,8 +324,11 @@ void redirect(int i){
     fprintf(stderr, " %s\n", result);
     dup2(save, STDIN_FILENO);
     fflush(stdin);
-    *wat = num;
     close(fd[0]);
+    waitpid(children[num], NULL, 0);
+    children[num] = 0;
+    strncpy((*list)[num], "", 256);
+    //printf("%d\n", num);
 }
 
 void find_file_s(char *directory, char *filename, char *cwd, int num){
@@ -338,6 +349,7 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
         } else if(S_ISREG(path_stat.st_mode)){
             if (strcmp(entry->d_name, filename) == 0){
                 snprintf(full_path, sizeof(full_path), "%s/%s", cwd, directory);
+                //sleep(5);
                 close(fd[0]);
                 enter(num);
                 write(fd[1], &num, sizeof(int));
@@ -410,18 +422,21 @@ void find_string(char *filepath, char *item, char *cwd, int num){
     while (fgets(buffer, 1024, file)){
         if (strstr(buffer, item)){
             snprintf(full_path, sizeof(full_path), "%s/%s", cwd, filepath);
-            close(fd[0]);
+            //sleep(5);
+            //close(fd[0]);
             enter(num);
             write(fd[1], &num, sizeof(int));
             write(fd[1], full_path, 1024);
             leave(num);
-            close(fd[1]);
+            found = 1;
+            //close(fd[1]);
             break;
         }
     }
     fclose(file);
 }
 
+/*currently can't write multiple directories into pipe. tested it so i know it does know the number of directories the string appears in*/
 void find_string_s(char *directory, char *item, char *cwd, int num){
     DIR *dir;
     struct dirent *entry;
