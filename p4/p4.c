@@ -15,17 +15,19 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-int *flag, *turn, fd[2], save, *children, found;
+int *flag, *turn, fd[2], save, *children, found, *stfound;
 /*for flag: 0 = idle, 1 = waiting, 2 = active*/
 char(*list)[10][256];
 
 int main(){
     int f, temp;
-    char input[256];
+    ssize_t len;
+    char input[256], result[1024];
     children = mmap(NULL, 10 * sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     list = mmap(NULL, 10 * 256, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     flag = mmap(NULL, sizeof(int) * 3, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     turn = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
+    stfound = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     save = dup(STDIN_FILENO);
     for(f = 0; f < 10; f++){
         children[f] = 0;
@@ -33,12 +35,20 @@ int main(){
     }
     *turn = 0;
     pipe(fd);
-    /*should pipe(fd) be inside or outside parent*/
     while(1){
         found = 0;
         fflush(stdin);
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
-        fgets(input, sizeof(input), stdin);
+        len = read(STDIN_FILENO, input, 256);
+        if(len > 0){
+            result[len] = '\0';
+            if(input[0] == '/'){
+                fprintf(stderr, "%s\n", input);
+                dup2(save, STDIN_FILENO);
+            }
+        } else{
+            read(STDIN_FILENO, input, 256);
+        }
         input[strlen(input) - 1] = '\0';
         fflush(stdin);
         temp = 0;
@@ -97,50 +107,19 @@ int main(){
             }
             /*find file*/
             if(item[0] != '"'){
-                if(flag1 != NULL && flag2 != NULL){
-
-                } else if(flag1 != NULL && flag2 == NULL){
+                if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
                         char cwd[1024];
                         getcwd(cwd, 1024);
                         find_file_s(".", item, cwd, num);
                         if(found == 0){
                             enter(num);
-                            write(fd[1], &num, sizeof(int));
                             write(fd[1], "file not found", strlen("file not found") + 1);
                             leave(num);
                         }
-                        kill(getppid(), SIGUSR1);
                         close(fd[1]);
-                        /*need something for not being able to find*/
+                        kill(getppid(), SIGUSR1);
                         exit(0);
-                    } else{
-                        // /*i dont think f flag is necessary for finding files*/
-                        // char *extension, *ext;
-                        // extension = strrchr(flag1, ':');
-                        // extension = &extension[1];
-                        // dir = opendir(".");
-                        // while((entry = readdir(dir)) != NULL){
-                        //     ext = strrchr(entry->d_name, '.');
-                        //     if (ext != NULL) {
-                        //         ext = &ext[1];
-                        //     } else {
-                        //         continue;
-                        //     }
-                        //     if(strcmp(extension, ext) == 0 && strcmp(entry->d_name, item) == 0){
-                        //         char cwd[1024];
-                        //         getcwd(cwd, 1024);
-                        //         close(fd[0]);
-                        //         enter(num);
-                        //         write(fd[1], &num, sizeof(int));
-                        //         write(fd[1], cwd, 1024);
-                        //         leave(num);
-                        //         kill(getppid(), SIGUSR1);
-                        //         close(fd[1]);
-                        //         /*need something for not being able to find*/
-                        //         exit(0);
-                        //     }
-                        // }
                     }
                 } else{
                     /*no flags, finding file*/
@@ -150,20 +129,18 @@ int main(){
                             char cwd[1024];
                             getcwd(cwd, 1024);
                             enter(num);
-                            write(fd[1], &num, sizeof(int));
                             write(fd[1], cwd, 1024);
                             leave(num);
-                            kill(getppid(), SIGUSR1);
                             close(fd[1]);
+                            kill(getppid(), SIGUSR1);
                             exit(0);
                         }
                     }
                     enter(num);
-                    write(fd[1], &num, sizeof(int));
                     write(fd[1], "file not found", strlen("file not found") + 1);
                     leave(num);
-                    kill(getppid(), SIGUSR1);
                     close(fd[1]);
+                    kill(getppid(), SIGUSR1);
                     exit(0);
                 }
             /*find string*/
@@ -178,12 +155,11 @@ int main(){
                     find_string_fs(".", item, extension, cwd, num);
                     if(found == 0){
                         enter(num);
-                        write(fd[1], &num, sizeof(int));
                         write(fd[1], "string not found", strlen("string not found") + 1);
                         leave(num);
                     }
-                    kill(getppid(), SIGUSR1);
                     close(fd[1]);
+                    kill(getppid(), SIGUSR1);
                     exit(0);
                 } else if(flag1 != NULL && flag2 == NULL){
                     if(flag1[1] == 's'){
@@ -192,12 +168,11 @@ int main(){
                         find_string_s(".", item, cwd, num);
                         if(found == 0){
                             enter(num);
-                            write(fd[1], &num, sizeof(int));
                             write(fd[1], "string not found", strlen("string not found") + 1);
                             leave(num);
                         }
-                        kill(getppid(), SIGUSR1);
                         close(fd[1]);
+                        kill(getppid(), SIGUSR1);
                         exit(0);
                     } else{
                         char *extension, *ext, cwd[1024];
@@ -214,19 +189,21 @@ int main(){
                             }
                             if(strcmp(extension, ext) == 0){
                                 find_string(entry->d_name, item, cwd, num);
-                                if(found == 0){
-                                    enter(num);
-                                    write(fd[1], &num, sizeof(int));
-                                    write(fd[1], "string not found", strlen("string not found") + 1);
-                                    leave(num);
+                                if(found == 1){
+                                    close(fd[1]);
+                                    kill(getppid(), SIGUSR1);
+                                    exit(0);
                                 }
-                                kill(getppid(), SIGUSR1);
-                                close(fd[1]);
-                                exit(0);
                             } else{
                                 continue;
                             }
                         }
+                        enter(num);
+                        write(fd[1], "string not found", strlen("string not found") + 1);
+                        leave(num);
+                        close(fd[1]);
+                        kill(getppid(), SIGUSR1);
+                        exit(0);
                     }
                 } else{
                     /*no flags, finding string*/
@@ -239,12 +216,11 @@ int main(){
                             find_string(entry->d_name, item, cwd, num);
                             if(found == 0){
                                 enter(num);
-                                write(fd[1], &num, sizeof(int));
                                 write(fd[1], "string not found", strlen("string not found") + 1);
                                 leave(num);
                             }
-                            kill(getppid(), SIGUSR1);
                             close(fd[1]);
+                            kill(getppid(), SIGUSR1);
                             exit(0);
                         }
                     }
@@ -253,6 +229,7 @@ int main(){
         } else{
             char *token, *copy;
             int i, num, status;
+            close(fd[1]);
             signal(SIGUSR1, redirect);
             /*i think i should move this into child, but for some reason when i did the program stopped working*/
             copy = (char*)malloc(256 * sizeof(char));
@@ -276,6 +253,8 @@ int main(){
                 munmap(list, 10 * 256);
                 munmap(flag, sizeof(int) * 3);
                 munmap(turn, sizeof(int));
+                free(copy);
+                close(fd[0]);
                 return 0;
             } else if(strcmp(token, "kill") == 0){
                 int kil;
@@ -302,6 +281,16 @@ int main(){
                     }
                 }
                 continue;
+            }
+            for(i = 0; i < 10; i++){
+                if(children[i] != 0){
+                    int t;
+                    t = waitpid(children[i], NULL, WNOHANG);
+                    if(t == 0){
+                        children[i] = 0;
+                        strncpy((*list)[i], "", 256);
+                    }
+                }
             }
             free(copy);
         }
@@ -340,22 +329,8 @@ void leave(int p){
 }
 
 void redirect(int i){
-    int num;
-    char result[1024] = {0};
-    fflush(stdin);
+    /*maybe reset stfound here*/
     dup2(fd[0], STDIN_FILENO);
-    close(fd[1]);
-    enter(10);
-    read(STDIN_FILENO, &num, sizeof(int));
-    read(STDIN_FILENO, result, 1024);
-    leave(10);
-    fprintf(stderr, " %s\n", result);
-    dup2(save, STDIN_FILENO);
-    fflush(stdin);
-    close(fd[0]);
-    waitpid(children[num], NULL, 0);
-    children[num] = 0;
-    strncpy((*list)[num], "", 256);
 }
 
 void find_file_s(char *directory, char *filename, char *cwd, int num){
@@ -379,7 +354,6 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
                 //sleep(5);
                 close(fd[0]);
                 enter(num);
-                write(fd[1], &num, sizeof(int));
                 write(fd[1], full_path, 1024);
                 leave(num);
                 close(fd[1]);
@@ -389,43 +363,6 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
     }
     closedir(dir);
 }
-
-/*find file with f flag is probably not necessayr*/
-/*void find_file_fs(char *directory, char *filename, char *type, char *cwd, int num){
-    DIR *dir;
-    struct dirent *entry;
-    struct stat path_stat;
-    char path[1024], full_path[1024], *ext;
-    dir = opendir(directory);
-    while ((entry = readdir(dir)) != NULL){
-        snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
-        stat(path, &path_stat);
-        if (S_ISDIR(path_stat.st_mode)){
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
-                continue;
-            }
-            ext = &ext[1];
-            find_file_fs(path, filename, type, cwd, num);
-        } else{
-            ext = strrchr(entry->d_name, '.');
-            if (ext != NULL) {
-                ext = &ext[1];
-            }else {
-                continue;
-            }
-            if (strcmp(type, ext) == 0 && strcmp(entry->d_name, filename) == 0){
-                snprintf(full_path, sizeof(full_path), "%s/%s", cwd, directory);
-                close(fd[0]);
-                enter(num);
-                write(fd[1], &num, sizeof(int));
-                write(fd[1], full_path, 1024);
-                leave(num);
-                close(fd[1]);
-            }
-        }
-    }
-    closedir(dir);
-}*/
 
 char *remove_quotes(char *input){
     int length = strlen(input);
@@ -449,15 +386,13 @@ void find_string(char *filepath, char *item, char *cwd, int num){
     }
     while (fgets(buffer, 1024, file)){
         if (strstr(buffer, item)){
+            /*have a global var with shared mem that increments by 1 every time the string gets found*/
             snprintf(full_path, sizeof(full_path), "%s/%s", cwd, filepath);
-            //sleep(5);
-            //close(fd[0]);
             enter(num);
-            write(fd[1], &num, sizeof(int));
             write(fd[1], full_path, 1024);
             leave(num);
             found = 1;
-            //close(fd[1]);
+            stfound++;
             break;
         }
     }
