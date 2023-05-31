@@ -22,7 +22,7 @@ char(*list)[10][256];
 int main(){
     int f, temp;
     ssize_t len;
-    char input[256], result[1024];
+    char input[1024], result[1024];
     children = mmap(NULL, 10 * sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     list = mmap(NULL, 10 * 256, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     flag = mmap(NULL, sizeof(int) * 3, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
@@ -39,9 +39,9 @@ int main(){
         found = 0;
         fflush(stdin);
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
-        len = read(STDIN_FILENO, input, 256);
+        len = read(STDIN_FILENO, input, 1024);
         if(len > 0){
-            result[len] = '\0';
+            input[len] = '\0';
             if(input[0] == '/'){
                 fprintf(stderr, "%s\n", input);
                 dup2(save, STDIN_FILENO);
@@ -68,6 +68,14 @@ int main(){
             char *item, *token, *flag1, *flag2;
             int num, i;
             close(fd[0]);
+            for(i = 0; i < 10; i++){
+                if(children[i] == 0){
+                    children[i] = f;
+                    strncpy((*list)[i], input, 256);
+                    num = i;
+                    break;
+                }
+            }
             token = strtok(input, " ");
             if(strcmp(token, "quit") == 0 || strcmp(token, "q") == 0){
                 close(fd[1]);
@@ -233,14 +241,14 @@ int main(){
             signal(SIGUSR1, redirect);
             /*i think i should move this into child, but for some reason when i did the program stopped working*/
             copy = (char*)malloc(256 * sizeof(char));
-            strncpy(copy, input, 256);
-            for(i = 0; i < 10; i++){
-                if(children[i] == 0){
-                    children[i] = f;
-                    strncpy((*list)[i], copy, 256);
-                    break;
-                }
-            }
+            // strncpy(copy, input, 256);
+            // for(i = 0; i < 10; i++){
+            //     if(children[i] == 0){
+            //         children[i] = f;
+            //         strncpy((*list)[i], copy, 256);
+            //         break;
+            //     }
+            // }
             token = strtok(input, " ");
             if(strcmp(token, "quit") == 0 || strcmp(token, "q") == 0){
                 for(i = 0; i < 10; i++){
@@ -261,7 +269,7 @@ int main(){
                 token = strtok(NULL, " ");
                 kil = atoi(token);
                 kill(children[kil-1], SIGKILL);
-                waitpid(children[kil-1], NULL, 0);
+                //waitpid(children[kil-1], NULL, 0);
                 children[kil-1] = 0;
                 strncpy((*list)[kil-1], "", 256);
                 wait(0);
@@ -282,16 +290,16 @@ int main(){
                 }
                 continue;
             }
-            for(i = 0; i < 10; i++){
-                if(children[i] != 0){
-                    int t;
-                    t = waitpid(children[i], NULL, WNOHANG);
-                    if(t == 0){
-                        children[i] = 0;
-                        strncpy((*list)[i], "", 256);
-                    }
-                }
-            }
+            // for(i = 0; i < 10; i++){
+            //     if(children[i] != 0){
+            //         int t;
+            //         t = waitpid(children[i], NULL, WNOHANG);
+            //         if(t == 0){
+            //             children[i] = 0;
+            //             strncpy((*list)[i], "", 256);
+            //         }
+            //     }
+            // }
             free(copy);
         }
     }
