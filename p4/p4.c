@@ -22,7 +22,7 @@ char(*list)[10][256];
 
 /*issues: freeing itembuffer, findstuff$ printing infinitely*/
 int main(){
-    int f, temp;
+    int f, temp, i;
     ssize_t len;
     char input[1024], result[1024], *item_buffer;
     children = mmap(NULL, 10 * sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
@@ -38,9 +38,16 @@ int main(){
     *turn = 0;
     pipe(fd);
     while(1){
+        signal(SIGUSR1, redirect);
         found = 0;
+        for(i = 0; i < 1024; i++){
+            input[i] = 0;
+        }
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
         len = read(STDIN_FILENO, input, 1024);
+        while(len == 0){
+            len = read(STDIN_FILENO, input, 1024);
+        }
         input[len] = '\0';
         if(input[0] == '/' || strcmp(input, "not found") == 0){
             fprintf(stderr, "%s\n", input);
@@ -57,7 +64,9 @@ int main(){
             fprintf(stderr, "There are 10 child processes running already\n");
             continue;
         }
-        f = fork();
+        if(input[0] == 'f'){
+            f = fork();
+        }
         if(f == 0){
             DIR *dir;
             struct dirent *entry;
@@ -247,8 +256,6 @@ int main(){
         } else{
             char *token;
             int i, num, status;
-            close(fd[1]);
-            signal(SIGUSR1, redirect);
             token = strtok(input, " ");
             if(token == NULL){
                 continue;
@@ -258,7 +265,6 @@ int main(){
                     int t;
                     t = waitpid(children[i], NULL, WNOHANG);
                     if(t > 0){
-                        //printf("childpid: %d\n", children[i]);
                         children[i] = 0;
                         strncpy((*list)[i], "", 256);
                     }
@@ -276,6 +282,7 @@ int main(){
                 munmap(list, 10 * 256);
                 munmap(flag, sizeof(int) * 3);
                 munmap(turn, sizeof(int));
+                close(fd[1]);
                 close(fd[0]);
                 return 0;
             } else if(strcmp(token, "kill") == 0){
@@ -284,7 +291,7 @@ int main(){
                 token = strtok(NULL, " ");
                 kil = atoi(token);
                 kill(children[kil-1], SIGKILL);
-                //waitpid(children[kil-1], NULL, 0);
+                waitpid(children[kil-1], NULL, 0);
                 children[kil-1] = 0;
                 strncpy((*list)[kil-1], "", 256);
                 for(kil = 0; kil < 10; kil++){
@@ -296,7 +303,6 @@ int main(){
                 continue;
             } else if(strcmp(token, "list") == 0){
                 int i;
-                //printf("listpid: %d\n", f);
                 waitpid(f, NULL, 0);
                 for(i = 0; i < 10; i++){
                     if(strcmp((*list)[i], "") != 0){
