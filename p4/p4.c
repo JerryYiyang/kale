@@ -24,7 +24,7 @@ char(*list)[10][256];
 int main(){
     int f, temp, i;
     ssize_t len;
-    char input[1024], result[1024], *item_buffer;
+    char input[1024], *item_buffer;
     children = mmap(NULL, 10 * sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     list = mmap(NULL, 10 * 256, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
     flag = mmap(NULL, sizeof(int) * 3, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
@@ -35,6 +35,7 @@ int main(){
         children[f] = 0;
         strncpy((*list)[f], "", 256);
     }
+    *stfound = 0;
     *turn = 0;
     pipe(fd);
     while(1){
@@ -45,14 +46,16 @@ int main(){
         }
         fprintf(stderr, ANSI_COLOR_CYAN  "findstuff$ "  ANSI_COLOR_RESET);
         len = read(STDIN_FILENO, input, 1024);
-        while(len == 0){
-            len = read(STDIN_FILENO, input, 1024);
-        }
-        input[len] = '\0';
         if(input[0] == '/' || strcmp(input, "not found") == 0){
             fprintf(stderr, "%s\n", input);
-            dup2(save, STDIN_FILENO);
+            while(*stfound > 1){
+                len = read(STDIN_FILENO, input, 1024);
+                fprintf(stderr, "%s\n", input);
+                *stfound -= 1;
+            }
+            *stfound = 0;
         }
+        dup2(save, STDIN_FILENO);
         input[strlen(input) - 1] = '\0';
         temp = 0;
         for(f = 0; f < 10; f++){
@@ -104,7 +107,6 @@ int main(){
             item = strtok(NULL, " ");
             item_buffer = malloc(256);
             if (item[0] == '"' && item[strlen(item)-1] != '"'){
-                /*will have to free item_buffer but i'm not sure when/where*/
                 char *next_token;
                 strcpy(item_buffer, item);
                 do{
@@ -120,7 +122,6 @@ int main(){
             } else{
                 flag2 = NULL;
             }
-            /*might have issue with timing*/
             for(i = 0; i < 10; i++){
                 if(children[i] == getpid()){
                     num = i;
@@ -255,7 +256,7 @@ int main(){
             }
         } else{
             char *token;
-            int i, num, status;
+            int i, num;
             token = strtok(input, " ");
             if(token == NULL){
                 continue;
@@ -282,6 +283,7 @@ int main(){
                 munmap(list, 10 * 256);
                 munmap(flag, sizeof(int) * 3);
                 munmap(turn, sizeof(int));
+                munmap(stfound, sizeof(int));
                 close(fd[1]);
                 close(fd[0]);
                 return 0;
@@ -316,7 +318,7 @@ int main(){
 }
 
 void enter(int p){
-/*i = 0-9 for child, 10 for parent*/
+/*p = 0-9 for child, 10 for parent*/
     int index;
     do{
         flag[p] = 1;
@@ -368,7 +370,6 @@ void find_file_s(char *directory, char *filename, char *cwd, int num){
         } else if(S_ISREG(path_stat.st_mode)){
             if (strcmp(entry->d_name, filename) == 0){
                 snprintf(full_path, sizeof(full_path), "%s/%s", cwd, directory);
-                //sleep(5);
                 close(fd[0]);
                 enter(num);
                 write(fd[1], full_path, 1024);
@@ -409,13 +410,13 @@ void find_string(char *filepath, char *item, char *cwd, int num){
             write(fd[1], full_path, 1024);
             leave(num);
             found = 1;
+            *stfound += 1;
             break;
         }
     }
     fclose(file);
 }
 
-/*currently can't write multiple directories into pipe. tested it so i know it does know the number of directories the string appears in*/
 void find_string_s(char *directory, char *item, char *cwd, int num){
     DIR *dir;
     struct dirent *entry;
