@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-
 /*doesnt work if im calling from a.out for some reason*/
 void oddEven(int arr[], int n, int id, int p);
 void swap(int arr[], int i, int j, int *sorted);
@@ -28,9 +27,11 @@ int main(int argc, char *argv[]){
     token = strtok(num, " ");
     count = 0;
     while(token != NULL){
-        nums[count] = atoi(token);
+        if(token != "\n"){
+            nums[count] = atoi(token);
+            count++;
+        }
         token = strtok(NULL, " ");
-        count++;
     }
     printf("initial array: [ ");
     for(i = 0; i < count; i++){
@@ -42,13 +43,14 @@ int main(int argc, char *argv[]){
     if((count / p) < 2){
         p = count / 2;
     }
-    ready = mmap(NULL, sizeof(int) * p, PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
-    for(i = 0; i < p; i++){
+    ready = mmap(NULL, sizeof(int) * (p + 1), PROT_READ | PROT_WRITE, MAP_SHARED | 0x20, -1, 0);
+    for(i = 0; i < (p + 1); i++){
         ready[i] = 0;
     }
     for(i = 0; i < p; i++){
         f = fork();
         if(f == 0){
+            synch(i, p, ready);
             oddEven(nums, count, i, p);
             exit(0);
         }
@@ -71,20 +73,16 @@ int main(int argc, char *argv[]){
 
 void oddEven(int arr[], int n, int id, int p){
     int sorted = 0;
-    while (!sorted) {
+    while (!sorted){
         sorted = 1;
-        synch(id, p, ready);
         for (int i = 1; i <= n - 2; i += 2){
-            if(i % p == id){
-                swap(arr, i, i + 1, &sorted);
-            }
+            swap(arr, i, i + 1, &sorted);
         }
         synch(id, p, ready);
         for (int i = 0; i <= n - 2; i += 2){
-            if(i % p == id){
-                swap(arr, i, i + 1, &sorted);
-            }
+            swap(arr, i, i + 1, &sorted);
         }
+        synch(id, p, ready);
     }
 }
 
@@ -100,8 +98,16 @@ void swap(int arr[], int i, int j, int *sorted){
 void synch(int par_id,int par_count,int *ready)
 {
     int i;
+    // ready[par_id] += 1;
+    // for(i = 0; i < par_count; i++){
+    //     while(ready[par_id] > ready[i]);
+    // }
+
+    if(par_id == 0){
+        ready[par_count] += 1;
+    }
     ready[par_id] += 1;
     for(i = 0; i < par_count; i++){
-        while(ready[par_id] > ready[i]);
+        while(ready[par_count] > ready[i]);
     }
 }
