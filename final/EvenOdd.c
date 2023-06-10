@@ -81,18 +81,18 @@ int main(int argc, char *argv[]){
 }
 
 void oddEven(int arr[], int n, int id, int p, int size){
-    int j;
+    int i, j;
     int sorted = 0;
     for(j = 0; j <= (size / 2); j++){
         sorted = 1;
         synch(id, p, ready);
-        for (int i = 1; i <= n - 2; i += 2){
+        for (i = 1; i <= n - 2; i += 2){
             if(i % p == id){
                 swap(arr, i, i + 1, &sorted);
             }
         }
         synch(id, p, ready);
-        for (int i = 0; i <= n - 2; i += 2){
+        for (i = 0; i <= n - 2; i += 2){
             if(i % p == id){
                 swap(arr, i, i + 1, &sorted);
             }
