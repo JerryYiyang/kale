@@ -23,11 +23,14 @@ int main(int argc, char *argv[]){
         execlp("./EvenOdd", "./EvenOdd", argv[2], NULL);
     } else{
         close(fd[0]);
-        nums = malloc(sizeof(char) * 5 * n);
+        nums = malloc(sizeof(char) * 3 * n);
         srand(time(NULL));
         j = 0;
         for (i = 0; i < n; i++) {
-            temp = (rand() % 201) - 100;
+            temp = rand() % 11;
+            if (rand() % 100 < 20){
+                temp = -temp;
+            }
             j += sprintf(nums + j, "%d ", temp);
         }
         nums[j - 1] = '\n';
